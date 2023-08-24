@@ -38,7 +38,9 @@ class Message(BaseModel):
     max_tokens: int
 
 @app.get("/")
-async def read_root():
+async def read_root(request: Request):
+    client_ip = request.client.host
+    print(f"Hello! You are accessing from IP address: {client_ip}")
     return {"Status": "Running"}
 
 @app.post("/load_context")

@@ -1,4 +1,4 @@
-import sympy as sp
+"""import sympy as sp
 
 # Definir la variable y la función desconocida
 t = sp.Symbol('t')
@@ -9,4 +9,4 @@ ecuacion_str = input("Ingresa la ecuación diferencial en términos de 't' y 'y'
 ecuacion = sp.sympify(ecuacion_str)
 
 # Resolver la ecuación diferencial
-solucion = sp.dsolve(ecuacion, y(t))
+solucion = sp.dsolve(ecuacion, y(t))"""
