@@ -242,9 +242,25 @@ async def create_exam(request: Request):
     result = qg.main(subject, questions, difficulty, hints, user)
     if result:
         add_daily_query_usage(user, 1)
-        return {"result": True, "message": "Exam created successfully"}
+        return {"result": True, "message": "Exam created successfully", "title": result}
     else:
-        return {"result": False, "message": "Error creating exam"}
+        return {"result": False, "message": "Error creating exam", "title": None}
 
+@app.post("/get_exam")
+async def get_exam(request: Request):
+    data = await request.json()
+    user = data['user']
+    token = data['token']
+    title = data['title']
+    if not auth_user(user, token):
+        return {"result": False, "message": "Invalid token"}
+    try:
+        with open(title, "rb") as f:
+            pdf = f.read()
+        pdf_base64 = base64.b64encode(pdf).decode("utf-8")
+        return {"result": True, "message": "Exam retrieved successfully", "pdf": pdf_base64}
+    except:
+        return {"result": False, "message": "Error retrieving exam", "pdf": None}
+    
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

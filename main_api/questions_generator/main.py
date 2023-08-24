@@ -7,6 +7,11 @@ load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+def fit_title(title):
+    title = title.replace(" ", "_")
+    title = re.sub(r"[^a-zA-Z0-9_]", "", title)
+    return title
+
 def generar_pdf_examen(titulo, instrucciones, preguntas_respuestas, archivo_salida):
     doc = Document(archivo_salida)
 
@@ -45,17 +50,17 @@ def main(subject, questions, difficulty, hints, user):
     for i in range(questions):
         preguntas_separadas.append(get_question(prompt))
     generar_pdf_examen(
-        titulo=subject,
+        titulo=fit_title(subject),
         instrucciones=["Answer the following questions in the space provided."],
         preguntas_respuestas=preguntas_separadas,
         archivo_salida=f"tex/{user}_{subject}.pdf"
     )
     #eliminamos los archvivos adicionales al pdf
-    os.remove(f"tex/{user}_{subject}.log")
-    os.remove(f"tex/{user}_{subject}.aux")
-    os.remove(f"tex/{user}_{subject}.tex")
-    os.remove(f"tex/{user}_{subject}.out")
-    return True
+    os.remove(f"tex/{user}_{fit_title(subject)}.log")
+    os.remove(f"tex/{user}_{fit_title(subject)}.aux")
+    os.remove(f"tex/{user}_{fit_title(subject)}.tex")
+    os.remove(f"tex/{user}_{fit_title(subject)}.out")
+    return f"tex/{user}_{fit_title(subject)}.pdf"
 
 if __name__ == "__main__":
     subject = "Linear Transformations"
