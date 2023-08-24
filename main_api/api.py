@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from functions import auth_user, imagen_a_bytesio
 from cost_manager import add_daily_query_usage, get_daily_query_usage, get_monthly_whisper_usage, calculate_tokens, get_monthly_embeddings_usage
 from function_callin import chat
+import questions_generator.main as qg
 
 app = FastAPI()
 load_dotenv()
@@ -222,6 +223,26 @@ async def chat_endpoint(message: Message):
         
     else:
         return {"user": user, "message": response_text, "image": None}
+
+@app.post("/create_exam")
+async def create_exam(request: Request):
+    data = await request.json()
+    user = data['user']
+    token = data['token']
+    type_user = data['type_user']
+    subject = data['subject']
+    questions = data['questions']
+    difficulty = data['difficulty']
+    hints = data['hints']
+    if not auth_user(user, token):
+        return {"result": False, "message": "Invalid token"}
+    monthly_embeddings_usage = get_monthly_embeddings_usage(user)
+    result = qg.main(subject, questions, difficulty, hints, user)
+    if result:
+        add_daily_query_usage(user, 1)
+        return {"result": True, "message": "Exam created successfully"}
+    else:
+        return {"result": False, "message": "Error creating exam"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
