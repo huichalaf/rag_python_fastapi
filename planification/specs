@@ -1,0 +1,10 @@
+time 2 weeks
+- Math specialized chatbot (calculator access)
+- access to pdf, txt, mp3, wav and urls
+- 3 plans (free, basic(10 usd), pro(15 usd))
+- cloud based everything
+tomorrow:
+- improve code organization and workflow, create workflow diagrams, test the application under various escenarious
+- all context working(wav, mp3, txt, pdf)
+- create the huggingfacehub api integration
+- dataset creation
