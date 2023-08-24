@@ -19,6 +19,11 @@ password_mongo = os.getenv("PASSWORD_MONGO")
 
 client = MongoClient("mongodb://localhost:27017/")
 
+def get_config():
+    with open("config.json", "r") as json_file:
+        data = json.load(json_file)
+    return data
+    
 def get_user_input(text):
     #buscamos donde dice Answer this question:
     index = text.find("Answer this question:")

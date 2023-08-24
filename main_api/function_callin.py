@@ -35,17 +35,19 @@ def chat(user, user_message, temperature, max_tokens):
     if functions == False:
         functions = []
     start = time.time()
-    #print("start: ", start)
-    print("messages: ", messages)
-    print("functions: ", functions)
+    data_config = get_config()
+    model = data_config["base_model"]
+    print("model: ", model)
+    #model = "gpt-3.5-turbo-0613"
     response = openai.ChatCompletion.create(
-        model = "gpt-3.5-turbo-0613",
+        model = model,
         messages = messages,
         functions = functions,
         function_call="auto",
         max_tokens = max_tokens,
         temperature = temperature,
     )
+    #print(response)
     try:
         total_tokens = response["usage"]["total_tokens"]
         add_daily_query_usage(user, total_tokens)
