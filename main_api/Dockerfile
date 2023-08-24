@@ -12,7 +12,7 @@ COPY . /
 RUN pip install -r requirements.txt
 
 # Exponemos el puerto de la API
-EXPOSE 5678
+EXPOSE 8000
 
 # Comando para iniciar la API
-CMD ["python", "server.py"]
+CMD ["python", "api.py"]
