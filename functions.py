@@ -16,8 +16,9 @@ user_mongo = os.getenv("USER_MONGO")
 password_mongo = os.getenv("PASSWORD_MONGO")
 
 #print(user_mongo, password_mongo)
+database_host = os.getenv("DATABASE_HOST")
+client = MongoClient(f"mongodb://{database_host}:27017/")
 
-client = MongoClient("mongodb://localhost:27017/")
 
 def get_config():
     with open("config.json", "r") as json_file:

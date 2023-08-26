@@ -2,6 +2,8 @@
 FROM python:3.11
 
 #instalamos ffmpeg
+RUN apt-get update && apt-get install -y ffmpeg
+
 # Creamos el directorio de trabajo dentro del contenedor
 WORKDIR /
 

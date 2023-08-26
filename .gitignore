@@ -1,7 +1,7 @@
 .env
 testing/*
-main_api/questions_generator/tex/*
-main_api/images/*
-main_api/embeddings/*
-main_api/context_selected/*
-main_api/subject/*
+questions_generator/tex/*
+images/*
+embeddings/*
+context_selected/*
+subject/*

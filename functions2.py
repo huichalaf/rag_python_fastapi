@@ -15,8 +15,8 @@ user_mongo = os.getenv("USER_MONGO")
 password_mongo = os.getenv("PASSWORD_MONGO")
 
 #print(user_mongo, password_mongo)
-
-client = MongoClient("mongodb://localhost:27017/")
+database_host = os.getenv("DATABASE_HOST")
+client = MongoClient(f"mongodb://{database_host}:27017/")
 
 def get_audio_duration(ruta_archivo):
     try:
