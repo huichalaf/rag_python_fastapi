@@ -7,3 +7,5 @@ context_selected/*
 subject/*
 .vscode/*
 names.csv
+embed_functions.csv
+output.out
