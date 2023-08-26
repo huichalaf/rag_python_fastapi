@@ -1,7 +1,8 @@
 .env
 testing/*
-questions_generator/tex/*
+tex/*
 images/*
 embeddings/*
 context_selected/*
 subject/*
+.vscode/*

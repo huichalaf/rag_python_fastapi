@@ -9,7 +9,7 @@ from functions2 import add_document, delete_document, documents_user, rename_by_
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from cost_manager import add_monthly_embeddings_usage, calculate_tokens, add_daily_query_usage
 dotenv.load_dotenv()
-
+files_path = os.getenv("FILES_PATH")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def divide_text_pdf_str(text):
@@ -36,9 +36,10 @@ def get_embeddings(text):
     return embeddings
 
 def open_embeddings(file_name):
+    global files_path
     file_name = file_name.split(".")[0:-1]
     file_name = "".join(file_name)
-    new_file_name = "embeddings/"+file_name+".csv"
+    new_file_name = f"{files_path}embeddings/"+file_name+".csv"
     df = pd.read_csv(new_file_name)
     df['embedding'] = df.embedding.apply(eval).apply(np.array)
     return df
@@ -68,21 +69,26 @@ def read_one_pdf(path):
 
 def save_document(user, path):
     print("save_document: ",user)
-    text = read_one_pdf("subject/pending/"+path)
+    global files_path
+    text = read_one_pdf(f"{files_path}subject/pending/"+path)
+    print("antes", type(text))
     total_tokens = calculate_tokens(text)
+    print("total_tokens: ",total_tokens)
     add_monthly_embeddings_usage(user, total_tokens)
     embeddings = get_embeddings(text)
     name = rename_by_hash(path, text, user)
+    print(name)
     print(add_document(user, name))
     print(len(text), len(embeddings))
     df = pd.DataFrame({'text': text, 'embedding': embeddings})
     file_name = name.split(".")[0:-1]
     file_name = "".join(file_name)
-    df.to_csv("embeddings/"+file_name+".csv")
+    df.to_csv(f"{files_path}embeddings/"+file_name+".csv")
     print(f"saved {path}")
     return embeddings, text
 
 def save_audio(user, path, text):
+    global files_path
     total_tokens = calculate_tokens(text)
     add_monthly_embeddings_usage(user, total_tokens)
     embeddings = get_embeddings(text)
@@ -92,11 +98,12 @@ def save_audio(user, path, text):
     df = pd.DataFrame({'text': text, 'embedding': embeddings})
     file_name = name.split(".")[0:-1]
     file_name = "".join(file_name)
-    df.to_csv("embeddings/"+file_name+".csv")
+    df.to_csv(f"{files_path}embeddings/"+file_name+".csv")
     print(f"saved {path}")
     return embeddings, text
 
 def save_text(user, path):
+    global files_path
     test = open(path, "r")
     text = test.read()
     total_tokens = calculate_tokens(text)
@@ -108,12 +115,13 @@ def save_text(user, path):
     df = pd.DataFrame({'text': text, 'embedding': embeddings})
     file_name = name.split(".")[0:-1]
     file_name = "".join(file_name)
-    df.to_csv("embeddings/"+file_name+".csv")
+    df.to_csv(f"{files_path}embeddings/"+file_name+".csv")
     print(f"saved {path}")
     return embeddings, text
 
 
 def load_embeddings(user):
+    global files_path
     documentos = documents_user(user)
     df = pd.read_csv("names.csv")
     try:
@@ -130,7 +138,7 @@ def load_embeddings(user):
             correo = correo + dominio
             documentos[i] = documentos[i].replace(correo, "")
     documentos_selected = []
-    with open(f'context_selected/{user}.txt', 'r') as file:
+    with open(f'{files_path}context_selected/{user}.txt', 'r') as file:
         for line in file:
             documentos_selected.append(line.strip())
     indices = []

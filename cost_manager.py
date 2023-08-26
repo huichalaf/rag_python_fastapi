@@ -17,12 +17,18 @@ client = MongoClient(f"mongodb://{database_host}:27017/")
 def calculate_tokens(string: str, encoding_name="cl100k_base") -> int:
     """Returns the number of tokens in a text string."""
     encoding = tiktoken.get_encoding(encoding_name)
-    num_tokens = len(encoding.encode(string))
+    text = ''
+    if type(string) == list:
+        for i in string:
+            try:
+                text += i
+            except:
+                text += i.page_content
+    else:
+        text = string
+    #print("text: ", text)
+    num_tokens = len(encoding.encode(text))
     return num_tokens
-
-def create_csv_file(user):
-    df = pd.DataFrame(columns=["time", "tokens", "category", "price"])
-    df.to_csv(f"costs/costs_{date.today()}_{user}.csv", index=False)
 
 def chat_gpt_cost_calculator(num_tokens):
     num_tokens /= 1000

@@ -45,22 +45,24 @@ def get_question(prompt):
     return response.choices[0].message.content
 
 def main(subject, questions, difficulty, hints, user):
+    subject = fit_title(subject)
     preguntas_separadas = []
+    files_path = os.getenv("FILES_PATH")
     prompt = f"subject: {subject}\ndifficulty: {difficulty}/100\nHints: {hints}"
     for i in range(questions):
         preguntas_separadas.append(get_question(prompt))
     generar_pdf_examen(
-        titulo=fit_title(subject),
+        titulo=subject,
         instrucciones=["Answer the following questions in the space provided."],
         preguntas_respuestas=preguntas_separadas,
-        archivo_salida=f"tex/{user}_{subject}.pdf"
+        archivo_salida=f"{files_path}tex/{user}_{subject}.pdf"
     )
     #eliminamos los archvivos adicionales al pdf
-    os.remove(f"tex/{user}_{fit_title(subject)}.log")
-    os.remove(f"tex/{user}_{fit_title(subject)}.aux")
-    os.remove(f"tex/{user}_{fit_title(subject)}.tex")
-    os.remove(f"tex/{user}_{fit_title(subject)}.out")
-    return f"tex/{user}_{fit_title(subject)}.pdf"
+    os.remove(f"{files_path}tex/{user}_{subject}.log")
+    os.remove(f"{files_path}tex/{user}_{subject}.aux")
+    os.remove(f"{files_path}tex/{user}_{subject}.tex")
+    os.remove(f"{files_path}tex/{user}_{subject}.out")
+    return f"tex/{user}_{subject}.pdf"
 
 if __name__ == "__main__":
     subject = "Linear Transformations"

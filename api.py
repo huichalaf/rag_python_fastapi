@@ -12,10 +12,11 @@ from pydantic import BaseModel
 from functions import auth_user, imagen_a_bytesio
 from cost_manager import add_daily_query_usage, get_daily_query_usage, get_monthly_whisper_usage, calculate_tokens, get_monthly_embeddings_usage
 from function_callin import chat
-import questions_generator.main as qg
+import document_generator as qg
 
 app = FastAPI()
 load_dotenv()
+files_path = os.getenv("FILES_PATH")
 monthly_basic_limit = os.getenv("MONTHLY_EMBEDDINGS_BASIC_LIMIT")
 monthly_pro_limit = os.getenv("MONTHLY_EMBEDDINGS_PRO_LIMIT")
 monthly_free_limit = os.getenv("MONTHLY_EMBEDDINGS_FREE_LIMIT")
@@ -45,12 +46,12 @@ async def read_root(request: Request):
 
 @app.post("/load_context")
 async def save_context(request: Request):  # Agregar el parámetro Request
-    
+    global files_path
     data = await request.json()  # Usar await para obtener los datos del body de la solicitud
     user = data['user']
     type_user = data['type_user']
 
-    files_prev = os.listdir("subject/pending")
+    files_prev = os.listdir(f"{files_path}subject/pending")
     files = []
     for i in files_prev:
         if user in i:
@@ -59,9 +60,11 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     files_txt = [i for i in files if i.split(".")[-1] == "txt"]
     files_audio = [i for i in files if i.split(".")[-1] == "mp3" or i.split(".")[-1] == "wav"]
     try:
+        #print(files_pdf)
         if len(files_pdf) > 0:
             for i in files_pdf:
-                text = read_one_pdf("subject/pending/"+i)
+                text = read_one_pdf(f"{files_path}subject/pending/"+i)
+                #print("text: ", text)
                 if text:
                     save_document(user, i)
     except Exception as e:
@@ -70,7 +73,7 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     try:
         if len(files_audio) > 0:
             for i in files_audio:
-                text = transcribe_audio(user, "subject/pending/"+i)
+                text = transcribe_audio(user, f"{files_path}subject/pending/"+i)
                 if text:
                     save_audio(user, i, text)
     except Exception as e:
@@ -79,7 +82,7 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     try:
         if len(files_txt) > 0:
             for i in files_txt:
-                text = read_one_txt("subject/pending/"+i)
+                text = read_one_txt(f"{files_path}subject/pending/"+i)
                 if text:
                     save_text(user, i)
     except Exception as e:
@@ -93,7 +96,7 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     total_files.extend(files_txt)
     #print(total_files)
     if len(total_files) > 0:
-        with open(f"context_selected/{user}.txt", 'a') as f:
+        with open(f"{files_path}context_selected/{user}.txt", 'a') as f:
             for i in total_files:
                 #eliminamos el nombre de usuario del nombre de archivo
                 i = i.replace(user, "")
@@ -148,6 +151,7 @@ async def get_documents(request: Request):
 
 @app.post("/delete_name")
 async def delete_name(request: Request):  # Agregar el parámetro Request
+    global files_path
     data = await request.json()
     user = data['user']
     name_file = data['name']
@@ -157,12 +161,12 @@ async def delete_name(request: Request):  # Agregar el parámetro Request
     #borramos el archivo
     delete_document(user, hash_name)
     try:
-        os.remove("subject/pending/"+hash_name)
+        os.remove(f"{files_path}subject/pending/"+hash_name)
     except:
-        os.remove("subject/embed/"+hash_name)
+        os.remove(f"{files_path}subject/embed/"+hash_name)
     embed_name = hash_name.split(".")[0:-1]
     embed_name = "".join(embed_name)
-    os.remove("embeddings/"+embed_name+".csv")
+    os.remove(f"{files_path}embeddings/"+embed_name+".csv")
     #borramos el registro del archivo
     df = df[df.name != name_file]
     df.to_csv("names.csv", index=False)
@@ -216,7 +220,7 @@ async def chat_endpoint(message: Message):
     if state_chart:
         try:
             print("imagen en la respuesta")
-            imagen = imagen_a_bytesio(f"images/{user}.png")
+            imagen = imagen_a_bytesio(f"{files_path}images/{user}.png")
             imagen_base64 = base64.b64encode(imagen).decode("utf-8")
             print("imagen codificada")
         except Exception as e:
@@ -236,10 +240,10 @@ async def create_exam(request: Request):
     questions = data['questions']
     difficulty = data['difficulty']
     hints = data['hints']
+    print("questions: ", questions)
     if not auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
-    monthly_embeddings_usage = get_monthly_embeddings_usage(user)
-    result = qg.main(subject, questions, difficulty, hints, user)
+    result = await qg.main(subject, questions, difficulty, hints, user)
     if result:
         add_daily_query_usage(user, 1)
         return {"result": True, "message": "Exam created successfully", "title": result}
@@ -252,12 +256,16 @@ async def get_exam(request: Request):
     user = data['user']
     token = data['token']
     title = data['title']
-    if not auth_user(user, token):
-        return {"result": False, "message": "Invalid token"}
+    #if not auth_user(user, token):
+    #    return {"result": False, "message": "Invalid token"}
     try:
+        print("title: ", title)
         with open(title, "rb") as f:
+            print("abriendo pdf")
             pdf = f.read()
+        print("pdf leido")
         pdf_base64 = base64.b64encode(pdf).decode("utf-8")
+        print("pdf codificado")
         return {"result": True, "message": "Exam retrieved successfully", "pdf": pdf_base64}
     except:
         return {"result": False, "message": "Error retrieving exam", "pdf": None}

@@ -80,6 +80,7 @@ def documents_user(user):
         return False
 
 def rename_by_hash(path, text, user):
+    files_path = os.getenv("FILES_PATH")
     extension = path.split(".")[-1]
     if type(text) == list:
         text = " ".join(text)
@@ -88,7 +89,7 @@ def rename_by_hash(path, text, user):
     new_name = hex_dig+"."+extension
     with open('names.csv', 'a') as f:
         f.write(f"{new_name},{path},{user}\n")
-    os.rename("subject/pending/"+path, "subject/embed/"+new_name)
+    os.rename(f"{files_path}subject/pending/"+path, f"{files_path}subject/embed/"+new_name)
     #os.remove("subject/"+path)
     return new_name
 

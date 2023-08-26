@@ -3,6 +3,10 @@ FROM python:3.11
 
 #instalamos ffmpeg
 RUN apt-get update && apt-get install -y ffmpeg
+RUN apt update && \
+    apt install -y texlive-base texlive-extra-utils && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Creamos el directorio de trabajo dentro del contenedor
 WORKDIR /
