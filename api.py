@@ -173,7 +173,7 @@ async def get_usage(message: Message):
     user = message.user
     token = message.token
     if not auth_user(user, token):
-        raise HTTPException(status_code=401, detail="Invalid token")
+        return {"result": False, "message": "Invalid token"}
     usage_resume = {
         "query": get_daily_query_usage(user),
         "embeddings": get_monthly_embeddings_usage(user),
@@ -193,15 +193,15 @@ async def chat_endpoint(message: Message):
 
     # Check user authentication and usage limits
     if not auth_user(user, token):
-        raise HTTPException(status_code=401, detail="Invalid token")
+        return {"result": False, "message": "Invalid token"}
     
     daily_query_usage = get_daily_query_usage(user)
     if daily_query_usage >= free_limit and type_user == "free":
-        raise HTTPException(status_code=429, detail="Exceeded daily query limit for free user")
+        return {"user": user, "message": "Exceeded daily query limit for free user", "image": None}
     if daily_query_usage >= basic_limit and type_user == "basic":
-        raise HTTPException(status_code=429, detail="Exceeded daily query limit for basic user")
+        return {"user": user, "message": "Exceeded daily query limit for basic user", "image": None}
     if daily_query_usage >= pro_limit and type_user == "pro":
-        raise HTTPException(status_code=429, detail="Exceeded daily query limit for pro user")
+        return {"user": user, "message": "Exceeded daily query limit for pro user", "image": None}
 
     try:
         print(f"User: {user}, Text: {text}, Temperature: {temperature}, Max tokens: {max_tokens}")
