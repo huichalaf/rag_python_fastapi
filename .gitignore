@@ -6,3 +6,4 @@ embeddings/*
 context_selected/*
 subject/*
 .vscode/*
+names.csv
