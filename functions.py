@@ -51,6 +51,56 @@ def auth_user(user, token):
     except:
         return False
 
+def update_credentials(user, token):
+    #we create the database mongodb connection
+    db = client["access_tokens"]
+    collection = db["tokens"]
+    try:
+        collection.update_one({"_id": user}, {"$set": {"token": token}})
+        return True
+    except:
+        return False
+
+def get_type_user(user):
+    db = client["users_data"]
+    collection = db["users"]
+    try:
+        result = collection.find_one({"_id": user})
+        return result["type_user"]
+    except:
+        return False
+
+def get_user_data(user, token):
+    db = client["users_data"]
+    collection = db["users"]
+    if not auth_user(user, token):
+        return False
+    try:
+        result = collection.find_one({"_id": user})
+        return result
+    except:
+        return False
+
+def update_type_user(user, token, type_user):
+    db = client["users_data"]
+    collection = db["users"]
+    if not auth_user(user, token):
+        return False
+    try:
+        collection.update_one({"_id": user}, {"$set": {"type_user": type_user}})
+        return True
+    except:
+        return False
+
+def create_user(user, token, type_user):
+    db = client["users_data"]
+    collection = db["users"]
+    try:
+        collection.insert_one({"_id": user, "token": token, "type_user": type_user, "created_at": datetime.now()})
+        return True
+    except:
+        return False
+
 def identify_numbers(text):
     text_list = list(text)
     numbers = []
