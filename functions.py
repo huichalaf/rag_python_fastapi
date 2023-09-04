@@ -61,10 +61,12 @@ def imagen_a_bytesio(ruta_imagen):
 
 def auth_user(user, token):
     #we create the database mongodb connection
+    print(user, token)
     db = client["access_tokens"]
     collection = db["tokens"]
     try:
         result = collection.find_one({"_id": user})
+        print(result)
         if result["token"] == token:
             return True
         else:
@@ -74,13 +76,18 @@ def auth_user(user, token):
 
 def update_credentials(user, token):
     #we create the database mongodb connection
+    print(f"new credentials: {user}, {token}")
     db = client["access_tokens"]
     collection = db["tokens"]
     try:
-        collection.update_one({"_id": user}, {"$set": {"token": token}})
+        collection.insert_one({"_id": user, "token": token})    
         return True
     except:
-        return False
+        try:
+            collection.update_one({"_id": user}, {"$set": {"token": token}})
+            return True
+        except:
+            return False
 
 def get_type_user(user):
     db = client["users_data"]
@@ -116,8 +123,12 @@ def update_type_user(user, token, type_user):
 def create_user(user, token, type_user):
     db = client["users_data"]
     collection = db["users"]
+    db2 = client["access_tokens"]
+    collection2 = db2["tokens"]
+    print("creating user")
     try:
         collection.insert_one({"_id": user, "token": token, "type_user": type_user, "created_at": datetime.now()})
+        collection2.insert_one({"_id": user, "token": token})
         return True
     except:
         return False

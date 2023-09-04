@@ -205,10 +205,31 @@ async def get_usage(request: Request):
     token = data['token']
     if not auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
+    usage_query = get_daily_query_usage(user)
+    usage_whisper = get_monthly_whisper_usage(user)
+    usage_embeddings = get_monthly_embeddings_usage(user)
+    #transformamos los datos de uso en un porcentaje dependiendo del tipo de usuario:
+    type_user = get_type_user(user)
+    if type_user == "free":
+        usage_query = usage_query/free_limit*100
+        usage_whisper = usage_whisper/monthly_free_limit*100
+        usage_embeddings = usage_embeddings/monthly_free_limit*100
+    elif type_user == "basic":
+        usage_query = usage_query/basic_limit*100
+        usage_whisper = usage_whisper/monthly_basic_limit*100
+        usage_embeddings = usage_embeddings/monthly_basic_limit*100
+    elif type_user == "pro":
+        usage_query = usage_query/pro_limit*100
+        usage_whisper = usage_whisper/monthly_pro_limit*100
+        usage_embeddings = usage_embeddings/monthly_pro_limit*100
+    #ahora acortamos los numeros
+    usage_query = round(usage_query, 2)
+    usage_whisper = round(usage_whisper, 2)
+    usage_embeddings = round(usage_embeddings, 2)
     usage_resume = {
-        "query": get_daily_query_usage(user),
-        "embeddings": get_monthly_embeddings_usage(user),
-        "audio": get_monthly_whisper_usage(user)
+        "query": usage_query,
+        "embeddings": usage_embeddings,
+        "audio": usage_whisper
     }
     return {"usage": usage_resume}
 
@@ -330,9 +351,9 @@ async def update_token(request: Request):
     data = await request.json()
     user = data['user']
     token = data['token']
-    response = update_credentials(user, token)
+    response = create_user(user, token, "free")
     if response==False:
-        response = create_user(user, token, "free")
+        response = update_credentials(user, token)
     return {"result": response}
 
 @app.post("/update_user_type")
