@@ -10,12 +10,12 @@ import base64
 import asyncio
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
-from functions import auth_user, imagen_a_bytesio, get_type_user, update_credentials, get_user_data, create_user, update_type_user
+from functions import auth_user, imagen_a_bytesio, get_type_user, update_credentials, get_user_data, create_user, update_type_user, change_filename, get_user
 from cost_manager import add_daily_query_usage, get_daily_query_usage, get_monthly_whisper_usage, calculate_tokens, get_monthly_embeddings_usage
 from function_callin import chat
 import document_generator as qg
 
-origins = ["http://localhost:5173"]
+origins = ["http://localhost:5173", "http://localhost:4173"]
 
 app = FastAPI()
 app.add_middleware(
@@ -63,6 +63,7 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     global files_path
     data = await request.json()  # Usar await para obtener los datos del body de la solicitud
     user = data['user']
+    user = get_user(user)
 
     files_prev = os.listdir(f"{files_path}subject/pending")
     files = []
@@ -73,11 +74,9 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     files_txt = [i for i in files if i.split(".")[-1] == "txt"]
     files_audio = [i for i in files if i.split(".")[-1] == "mp3" or i.split(".")[-1] == "wav"]
     try:
-        #print(files_pdf)
         if len(files_pdf) > 0:
             for i in files_pdf:
                 text = read_one_pdf(f"{files_path}subject/pending/"+i)
-                #print("text: ", text)
                 if text:
                     save_document(user, i)
     except Exception as e:
@@ -102,16 +101,13 @@ async def save_context(request: Request):  # Agregar el parámetro Request
         print("error en txt: ",e)
         return {"result": False}
 
-    #print(files_audio, files_pdf, files_txt)
     total_files = []
     total_files.extend(files_audio)
     total_files.extend(files_pdf)
     total_files.extend(files_txt)
-    #print(total_files)
     if len(total_files) > 0:
         with open(f"{files_path}context_selected/{user}.txt", 'a') as f:
             for i in total_files:
-                #eliminamos el nombre de usuario del nombre de archivo
                 i = i.replace(user, "")
                 f.write(i+"\n")
     return {"result": True}
@@ -217,13 +213,15 @@ async def get_usage(request: Request):
     return {"usage": usage_resume}
 
 @app.post("/chat")
-async def chat_endpoint(message: Message):
-    user = message.user
-    token = message.token
-    type_user = message.type_user
-    text = message.text
-    temperature = message.temperature/100
-    max_tokens = message.max_tokens
+async def chat_endpoint(request: Request):
+    message = await request.json()
+    user = message['user']
+    token = message['token']
+    type_user = get_type_user(user)
+    text = message['message']
+    temperature = message['temperature']
+    max_tokens = message['max_tokens']
+
     print("question of user: ", user)
 
     # Check user authentication and usage limits
@@ -323,7 +321,7 @@ async def get_user_type(request: Request):
 @app.post("/uploadfile")
 async def upload_file(request: Request, file: UploadFile, user: str = Form(...)):
     files_path = os.getenv("UPLOADED_FILES_PATH")
-    with open(f"{files_path}{file.filename}", "wb") as f:
+    with open(f"{files_path}{user}_{change_filename(file.filename)}", "wb") as f:
         f.write(file.file.read())
     return {"message": "Archivo subido correctamente"}
 

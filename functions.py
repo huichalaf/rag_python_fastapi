@@ -19,6 +19,27 @@ password_mongo = os.getenv("PASSWORD_MONGO")
 database_host = os.getenv("DATABASE_HOST")
 client = MongoClient(f"mongodb://{database_host}:27017/")
 
+def change_filename(filename):
+    filename = filename.replace(" ", "_")
+    filename = filename.replace(":", "_")
+    filename = filename.replace("(", "_")
+    filename = filename.replace(")", "_")
+    filename = filename.replace("?", "_")
+    filename = filename.replace("¿", "_")
+    filename = filename.replace("!", "_")
+    filename = filename.replace("¡", "_")
+    filename = filename.replace(";", "_")
+    filename = filename.replace(",", "_")
+    filename = filename.replace("/", "_")
+    return filename
+
+def get_user(user):
+    #dividimos por ;
+    user = user.split(";")[0]
+    #quitamos user=
+    user = user.replace("user=", "")
+    user = user.replace("%40", "@")
+    return user
 
 def get_config():
     with open("config.json", "r") as json_file:
