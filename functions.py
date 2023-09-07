@@ -6,7 +6,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import time as tm
-from cost_manager import *
+from pymongo import MongoClient
+from cost_manager import calculate_tokens, ask_add, ask_limit, add_daily_query_usage, add_monthly_embeddings_usage, add_monthly_whisper_usage, get_daily_query_usage, get_monthly_embeddings_usage, get_monthly_whisper_usage
 from PIL import Image
 import io
 

@@ -10,6 +10,7 @@ import dotenv
 from functions2 import add_document, delete_document, documents_user, rename_by_hash, cosine_similarity, get_all_embeddings, get_all_text, transcribe_audio
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from cost_manager import add_monthly_embeddings_usage, calculate_tokens, add_daily_query_usage, ask_add
+from functions3 import get_selected_files
 dotenv.load_dotenv()
 files_path = os.getenv("FILES_PATH")
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -175,12 +176,15 @@ async def load_embeddings(user):
             correo = documentos[i].split("@")[0]
             correo = correo + dominio
             documentos[i] = documentos[i].replace(correo, "")
-    documentos_selected = []
-    with open(f'{files_path}context_selected/{user}.txt', 'r') as file:
-        for line in file:
-            documentos_selected.append(line.strip())
+    documentos_selected = await get_selected_files(user)
+    try:
+        documentos_selected = documentos_selected[0].files
+        print(documentos_selected)
+    except:
+        documentos_selected = []
     indices = []
     for i in documentos_selected:
+        print(i, documentos)
         if i in documentos:
             indices.append(documentos.index(i))
     documentos_name = [documentos[i] for i in indices]

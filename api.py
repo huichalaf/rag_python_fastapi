@@ -14,6 +14,7 @@ from functions import auth_user, imagen_a_bytesio, get_type_user, update_credent
 from cost_manager import add_daily_query_usage, get_daily_query_usage, get_monthly_whisper_usage, calculate_tokens, get_monthly_embeddings_usage
 from function_callin import chat
 import document_generator as qg
+from functions3 import *
 
 origins = ["http://localhost:5173", "http://localhost:4173"]
 
@@ -63,8 +64,7 @@ class UserData(BaseModel):
 @app.get("/")
 async def read_root(request: Request):
     client_ip = request.client.host
-    print(f"Access from IP address: {client_ip}")
-    return {"Status": "Running"}
+    return {"Status": "Running", "IP": client_ip}
 
 @app.post("/load_context")
 async def save_context(request: Request):  # Agregar el parámetro Request
@@ -75,7 +75,11 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     except:
         return {"result": False, "message": "Invalid parameters"}
     user = await get_user(user)
-
+    if await get_status(user, "loading_documents") == "active":
+        print("already loading")
+        return {"result": False, "message": "Loading documents"}
+    updated_status = await update_status(user, "loading_documents", "active")
+    
     files_prev = os.listdir(f"{files_path}subject/pending")
     files = []
     for i in files_prev:
@@ -92,11 +96,13 @@ async def save_context(request: Request):  # Agregar el parámetro Request
                     response_save = await save_document(user, i)
                     try:
                         if not response_save:
-                            return {"result": False}
+                            await update_status(user, "loading_documents", "inactive")
+                            return {"result": False, "message": "Exceed monthly embeddings limit"}
                     except:
                         pass
     except Exception as e:
         print("\033[91merror en pdf: \033[0m",e)
+        await update_status(user, "loading_documents", "inactive")
         return {"result": False}
     try:
         if len(files_audio) > 0:
@@ -106,11 +112,15 @@ async def save_context(request: Request):  # Agregar el parámetro Request
                     response_save = await save_audio(user, i, text)
                     try:
                         if not response_save:
-                            return {"result": False}
+                            await update_status(user, "loading_documents", "inactive")
+                            return {"result": False, "message": "Exceed monthly embeddings limit"}
                     except:
                         pass
+                elif text == None:
+                    return {"result": False, }
     except Exception as e:
         print("\033[91merror en audio: \033[0m",e)
+        await update_status(user, "loading_documents", "inactive")
         return {"result": False}
     try:
         if len(files_txt) > 0:
@@ -120,11 +130,13 @@ async def save_context(request: Request):  # Agregar el parámetro Request
                     response_save = await save_text(user, i)
                     try:
                         if not response_save:
-                            return {"result": False}
+                            await update_status(user, "loading_documents", "inactive")
+                            return {"result": False, "message": "Exceed monthly embeddings limit"}
                     except:
                         pass
     except Exception as e:
         print("\033[91merror en txt: \033[0m",e)
+        await update_status(user, "loading_documents", "inactive")
         return {"result": False}
 
     total_files = []
@@ -132,11 +144,17 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     total_files.extend(files_pdf)
     total_files.extend(files_txt)
     if len(total_files) > 0:
-        with open(f"{files_path}context_selected/{user}.txt", 'a') as f:
-            for i in total_files:
-                i = i.replace(user, "")
-                f.write(i+"\n")
-    return {"result": True}
+        total_existed_files = await get_selected_files(user)
+        #juntamos ambas listas
+        try:
+            total_existed_files = total_existed_files[0].files
+        except:
+            total_existed_files = []
+        total_existed_files.extend(total_files)
+        await add_selected_files(user, total_existed_files)
+
+    await update_status(user, "loading_documents", "inactive")
+    return {"result": True, "message": "Documents loaded successfully"}
         
 @app.post("/context")
 async def get_context(request: Request):  # Agregar el parámetro Request
@@ -167,18 +185,13 @@ async def update_context_files(request: Request):
     data = await request.json()
     try:
         user = data['user']
-        token = data['token']
         files = data['files']
     except:
         return {"result": False, "message": "Invalid parameters"}
-    if not await auth_user(user, token):
-        return {"result": False, "message": "Invalid token"}
-    with open(f"{context_selected_path}{user}.txt", 'w') as f:
-        try:
-            for i in files:
-                f.write(i+"\n")
-        except:
-            return False
+    print(files)
+    await delete_all_selected_files(user)
+    await add_selected_files(user, files)
+
     return True
 
 @app.post("/get_documents")
@@ -518,4 +531,4 @@ async def add_new_chat(request: Request):
 if __name__ == "__main__":
     workers = os.getenv("AMOUNT_OF_WORKERS")
     workers = int(workers)
-    asyncio.run(uvicorn.run(app, host="0.0.0.0", port=8000))
+    asyncio.run(uvicorn.run(app, host="0.0.0.0", port=8000, workers=4))

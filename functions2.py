@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from hashlib import sha256
 import numpy as np
 from pydub import AudioSegment
-from cost_manager import add_monthly_whisper_usage
+from cost_manager import add_monthly_whisper_usage, ask_add
 import openai
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from datetime import date
@@ -124,6 +124,20 @@ async def transcribe_audio(user, file):
     file = '.'.join(file)
     #calculamos el tiempo del audio
     duration = await get_audio_duration(file1)
+    posible = await ask_add(user, "whisper", duration)
+    try:
+        if not posible:
+            os.remove(file1)
+            return None
+    except:
+        pass
+    posible2 = await ask_add(user, "embeddings", 1)
+    try:
+        if not posible2:
+            os.remove(file1)
+            return None
+    except:
+        pass
     await add_monthly_whisper_usage(user, duration)
     os.system(f"mkdir {file}")
     os.system(f"ffmpeg -i {file1} -f segment -segment_time 60 -c copy {file}/out%03d.wav")

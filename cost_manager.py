@@ -4,7 +4,6 @@ from datetime import datetime, date
 import os
 from dotenv import load_dotenv
 from pymongo import MongoClient
-from functions import get_type_user
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
 
@@ -29,6 +28,15 @@ whisper_free_limit = os.getenv("MONTHLY_AUDIO_FREE_LIMIT")
 whisper_pro_limit = int(whisper_pro_limit)
 whisper_basic_limit = int(whisper_basic_limit)
 whisper_free_limit = int(whisper_free_limit)
+
+async def get_type_user(user):
+    db = client["users_data"]
+    collection = db["users"]
+    try:
+        result = collection.find_one({"_id": user})
+        return result["type_user"]
+    except:
+        return False
 
 async def calculate_tokens(string: str, encoding_name="cl100k_base") -> int:
     """Returns the number of tokens in a text string."""
