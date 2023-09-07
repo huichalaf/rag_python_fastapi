@@ -9,7 +9,7 @@ import concurrent.futures
 import dotenv
 from functions2 import add_document, delete_document, documents_user, rename_by_hash, cosine_similarity, get_all_embeddings, get_all_text, transcribe_audio
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from cost_manager import add_monthly_embeddings_usage, calculate_tokens, add_daily_query_usage
+from cost_manager import add_monthly_embeddings_usage, calculate_tokens, add_daily_query_usage, ask_add
 dotenv.load_dotenv()
 files_path = os.getenv("FILES_PATH")
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -93,6 +93,11 @@ async def save_document(user, path):
         text = await read_one_pdf(f"{files_path}subject/pending/"+path)
         print("TEXTO OBTENIDO")
         total_tokens = await calculate_tokens(text)
+        posible = await ask_add(user, "embeddings", total_tokens)
+        if not posible:
+            #eliminamos el archivo
+            os.remove(f"{files_path}subject/pending/"+path)
+            return False
         print(total_tokens)
         await add_monthly_embeddings_usage(user, total_tokens)
         print("embeddings añadidos")
@@ -107,12 +112,16 @@ async def save_document(user, path):
         return embeddings, text
     except Exception as e:
         print(f"\033[91m{e}\033[0m")
-        return [], []
+        return False
 
 async def save_audio(user, path, text):
     global files_path
     try:
         total_tokens = await calculate_tokens(text)
+        posible = await ask_add(user, "embeddings", total_tokens)
+        if not posible:
+            os.remove(f"{files_path}subject/pending/"+path)
+            return False
         await add_monthly_embeddings_usage(user, total_tokens)
         embeddings = await get_embeddings(text)
         name = await rename_by_hash(path, text, user)
@@ -124,6 +133,7 @@ async def save_audio(user, path, text):
         return embeddings, text
     except Exception as e:
         print(f"\033[91m{e}\033[0m")
+        return False
 
 async def save_text(user, path):
     global files_path
@@ -131,6 +141,10 @@ async def save_text(user, path):
         test = open(path, "r")
         text = test.read()
         total_tokens = await calculate_tokens(text)
+        posible = await ask_add(user, "embeddings", total_tokens)
+        if not posible:
+            os.remove(f"{files_path}subject/pending/"+path)
+            return False
         await add_monthly_embeddings_usage(user, total_tokens)
         embeddings = await get_embeddings(text)
         name = await rename_by_hash(path, text, user)
@@ -142,6 +156,7 @@ async def save_text(user, path):
         return embeddings, text
     except Exception as e:
         print(f"\033[91m{e}\033[0m")
+        return False
 
 async def load_embeddings(user):
     global files_path

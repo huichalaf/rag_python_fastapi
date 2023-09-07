@@ -4,13 +4,31 @@ from datetime import datetime, date
 import os
 from dotenv import load_dotenv
 from pymongo import MongoClient
-
+from functions import get_type_user
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
 
 database_host = os.getenv("DATABASE_HOST")
 client = MongoClient(f"mongodb://{database_host}:27017/")
 
+monthly_basic_limit = os.getenv("MONTHLY_EMBEDDINGS_BASIC_LIMIT")
+monthly_pro_limit = os.getenv("MONTHLY_EMBEDDINGS_PRO_LIMIT")
+monthly_free_limit = os.getenv("MONTHLY_EMBEDDINGS_FREE_LIMIT")
+monthly_basic_limit = int(monthly_basic_limit)
+monthly_pro_limit = int(monthly_pro_limit)
+monthly_free_limit = int(monthly_free_limit)
+basic_limit = os.getenv("DAILY_QUERYS_BASIC_LIMIT")
+pro_limit = os.getenv("DAILY_QUERYS_PRO_LIMIT")
+free_limit = os.getenv("DAILY_QUERYS_FREE_LIMIT")
+basic_limit = int(basic_limit)
+pro_limit = int(pro_limit)
+free_limit = int(free_limit)
+whisper_pro_limit = os.getenv("MONTHLY_AUDIO_PRO_LIMIT")
+whisper_basic_limit = os.getenv("MONTHLY_AUDIO_BASIC_LIMIT")
+whisper_free_limit = os.getenv("MONTHLY_AUDIO_FREE_LIMIT")
+whisper_pro_limit = int(whisper_pro_limit)
+whisper_basic_limit = int(whisper_basic_limit)
+whisper_free_limit = int(whisper_free_limit)
 
 async def calculate_tokens(string: str, encoding_name="cl100k_base") -> int:
     """Returns the number of tokens in a text string."""
@@ -68,6 +86,45 @@ async def ask_limit(user, type):
         return True
     except:
         return False
+
+async def ask_add(user, type, tokens):
+    user_type = await get_type_user(user)
+    if type == "embeddings":
+        if user_type == "pro":
+            limit = monthly_pro_limit
+        elif user_type == "basic":
+            limit = monthly_basic_limit
+        else:
+            limit = monthly_free_limit
+        usage = await get_monthly_embeddings_usage(user)
+        if usage + tokens > limit:
+            return False
+        else:
+            return True
+    elif type == "chat":
+        if user_type == "pro":
+            limit = pro_limit
+        elif user_type == "basic":
+            limit = basic_limit
+        else:
+            limit = free_limit
+        usage = await get_daily_query_usage(user)
+        if usage + tokens > limit:
+            return False
+        else:
+            return True
+    elif type == "whisper":
+        if user_type == "pro":
+            limit = whisper_pro_limit
+        elif user_type == "basic":
+            limit = whisper_basic_limit
+        else:
+            limit = whisper_free_limit
+        usage = await get_monthly_whisper_usage(user)
+        if usage + tokens > limit:
+            return False
+        else:
+            return True
 
 async def add_daily_query_usage(user, questions):
     db = client['chat']

@@ -70,7 +70,10 @@ async def read_root(request: Request):
 async def save_context(request: Request):  # Agregar el parámetro Request
     global files_path
     data = await request.json()  # Usar await para obtener los datos del body de la solicitud
-    user = data['user']
+    try:
+        user = data['user']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
     user = await get_user(user)
 
     files_prev = os.listdir(f"{files_path}subject/pending")
@@ -86,7 +89,12 @@ async def save_context(request: Request):  # Agregar el parámetro Request
             for i in files_pdf:
                 text = await read_one_pdf(f"{files_path}subject/pending/"+i)
                 if text:
-                    await save_document(user, i)
+                    response_save = await save_document(user, i)
+                    try:
+                        if not response_save:
+                            return {"result": False}
+                    except:
+                        pass
     except Exception as e:
         print("\033[91merror en pdf: \033[0m",e)
         return {"result": False}
@@ -95,7 +103,12 @@ async def save_context(request: Request):  # Agregar el parámetro Request
             for i in files_audio:
                 text = await transcribe_audio(user, f"{files_path}subject/pending/"+i)
                 if text:
-                    await save_audio(user, i, text)
+                    response_save = await save_audio(user, i, text)
+                    try:
+                        if not response_save:
+                            return {"result": False}
+                    except:
+                        pass
     except Exception as e:
         print("\033[91merror en audio: \033[0m",e)
         return {"result": False}
@@ -104,7 +117,12 @@ async def save_context(request: Request):  # Agregar el parámetro Request
             for i in files_txt:
                 text = await read_one_txt(f"{files_path}subject/pending/"+i)
                 if text:
-                    await save_text(user, i)
+                    response_save = await save_text(user, i)
+                    try:
+                        if not response_save:
+                            return {"result": False}
+                    except:
+                        pass
     except Exception as e:
         print("\033[91merror en txt: \033[0m",e)
         return {"result": False}
@@ -123,8 +141,14 @@ async def save_context(request: Request):  # Agregar el parámetro Request
 @app.post("/context")
 async def get_context(request: Request):  # Agregar el parámetro Request
     data = await request.json()
-    user = data['user']
-    prompt = data['text']
+    try:
+        user = data['user']
+        prompt = data['text']
+        token = data['token']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
+    if not await auth_user(user, token):
+        return {"result": False, "message": "Invalid token"}
     try:
         closer = await get_closer(user, prompt, number=10)
     except Exception as e:
@@ -133,6 +157,7 @@ async def get_context(request: Request):  # Agregar el parámetro Request
     if type(closer) == bool:
         return "Answer this question: "
     context = closer['text'].tolist()
+    await add_daily_query_usage(user, 1)
     plain_text = " ".join(context)
     return plain_text
 
@@ -140,8 +165,14 @@ async def get_context(request: Request):  # Agregar el parámetro Request
 async def update_context_files(request: Request):
     global context_selected_path
     data = await request.json()
-    user = data['user']
-    files = data['files']
+    try:
+        user = data['user']
+        token = data['token']
+        files = data['files']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
+    if not await auth_user(user, token):
+        return {"result": False, "message": "Invalid token"}
     with open(f"{context_selected_path}{user}.txt", 'w') as f:
         try:
             for i in files:
@@ -150,20 +181,14 @@ async def update_context_files(request: Request):
             return False
     return True
 
-@app.post("/get_name")
-async def get_name(request: Request):  # Agregar el parámetro Request
-    data = await request.json()
-    user = data['user']
-    df = pd.read_csv("names.csv")
-    df = df[df.user == user]
-    #print(df.name.tolist())
-    return {'result': df.name.tolist()}
-
 @app.post("/get_documents")
 async def get_documents(request: Request):
     data = await request.json()
-    user = data['user']
-    token = data['token']
+    try:
+        user = data['user']
+        token = data['token']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
     if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     documentos = await documents_user(user)
@@ -187,8 +212,14 @@ async def get_documents(request: Request):
 async def delete_name(request: Request):  # Agregar el parámetro Request
     global files_path
     data = await request.json()
-    user = data['user']
-    name_file = data['name']
+    try:
+        user = data['user']
+        name_file = data['name']
+        token = data['token']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
+    if not await auth_user(user, token):
+        return {"result": False, "message": "Invalid token"}
     df = pd.read_csv("names.csv")
     #conseguimos el hash_name del archivo
     hash_name = df[df.name == name_file].hash_name.tolist()[0]
@@ -208,14 +239,26 @@ async def delete_name(request: Request):  # Agregar el parámetro Request
 
 @app.post("/get_chats")
 async def get_chats():
-    chats = await get_all_chats()
-    return {"chats": chats}
+    data = await request.json()
+    try:
+        user = data['user']
+        token = data['token']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
+    if not await auth_user(user, token):
+        return {"result": False, "message": "Invalid token"}
+    chats = await get_all_chats(user)
+    chats = chats.to_json()
+    return {"result": True, "message": "Chats retrieved successfully", "chats": chats}
 
 @app.post("/usage")
 async def get_usage(request: Request):
     data = await request.json()
-    user = data['user']
-    token = data['token']
+    try:
+        user = data['user']
+        token = data['token']
+    except:
+        return {"result": False, "message": "Invalid parameters"}    
     if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     usage_query = await get_daily_query_usage(user)
@@ -249,12 +292,15 @@ async def get_usage(request: Request):
 @app.post("/chat")
 async def chat_endpoint(request: Request):
     message = await request.json()
-    user = message['user']
-    token = message['token']
+    try:
+        user = message['user']
+        token = message['token']
+        text = message['message']
+        temperature = message['temperature']
+        max_tokens = message['max_tokens']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
     type_user = await get_type_user(user)
-    text = message['message']
-    temperature = message['temperature']
-    max_tokens = message['max_tokens']
 
     if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
@@ -290,13 +336,16 @@ async def chat_endpoint(request: Request):
 @app.post("/create_exam")
 async def create_exam(request: Request):
     data = await request.json()
-    user = data['user']
-    token = data['token']
-    type_user = data['type_user']
-    subject = data['subject']
-    questions = data['questions']
-    difficulty = data['difficulty']
-    hints = data['hints']
+    try:
+        user = data['user']
+        token = data['token']
+        type_user = data['type_user']
+        subject = data['subject']
+        questions = data['questions']
+        difficulty = data['difficulty']
+        hints = data['hints']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
     if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     result = await qg.main(subject, questions, difficulty, hints, user)
@@ -309,9 +358,12 @@ async def create_exam(request: Request):
 @app.post("/get_exam")
 async def get_exam(request: Request):
     data = await request.json()
-    user = data['user']
-    token = data['token']
-    title = data['title']
+    try:
+        user = data['user']
+        token = data['token']
+        title = data['title']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
     if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     try:
@@ -325,8 +377,11 @@ async def get_exam(request: Request):
 @app.post("/auth_user")
 async def auth0(request: Request):
     data = await request.json()
-    user = data['user']
-    token = data['token']
+    try:
+        user = data['user']
+        token = data['token']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
     if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     return {"result": True, "message": "Valid token"}
@@ -334,8 +389,11 @@ async def auth0(request: Request):
 @app.post("/get_user_type")
 async def get_user_type(request: Request):
     data = await request.json()
-    user = data['user']
-    token = data['token']
+    try:
+        user = data['user']
+        token = data['token']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
     user_type = await get_type_user(user)
     if user_type == False:
         return {"result": False, "message": "Invalid user"}
@@ -352,9 +410,12 @@ async def upload_file(request: Request, file: UploadFile, user: str = Form(...))
 @app.post("/update_token")
 async def update_token(request: Request):
     data = await request.json()
-    user = data['user']
-    token = data['token']
-    auth_token = data['auth_token']
+    try:
+        user = data['user']
+        token = data['token']
+        auth_token = data['auth_token']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
     if auth_token != autentication_token:
         return {"result": False, "message": "Invalid token"}
     response = await create_user(user, token, "free")
@@ -365,17 +426,23 @@ async def update_token(request: Request):
 @app.post("/update_user_type")
 async def update_user_type(request: Request):
     data = await request.json()
-    user = data['user']
-    token = data['token']
-    user_type = data['type']
+    try:
+        user = data['user']
+        token = data['token']
+        user_type = data['type']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
     response = await update_type_user(user, token, user_type)
     return {"result": response}
 
 @app.post("/profile")
 async def get_profile(request: Request):
     data = await request.json()
-    user = data['user']
-    token = data['token']
+    try:
+        user = data['user']
+        token = data['token']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
     if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     user_type = await get_user_data(user, token)
@@ -390,6 +457,63 @@ async def get_profile(request: Request):
         "created_at": user_type[clave],
     }
     return {"result": True, "message": "Valid user", "data": user_data}
+
+@app.post("/update_chat")
+async def update_chat(request: Request):
+    data = await request.json()
+    try:
+        user = data['user']
+        token = data['token']
+        chat_id = data['chat_id']
+        new_messages = data['new_messages']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
+    if not await auth_user(user, token):
+        return {"result": False, "message": "Invalid token"}
+    response = await update_chat_messages(user, chat_id, new_messages)
+    return {"result": response}
+
+@app.post("/delete_chat")
+async def delete_chat(request: Request):
+    data = await request.json()
+    try:
+        user = data['user']
+        token = data['token']
+        chat_id = data['chat_id']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
+    if not await auth_user(user, token):
+        return {"result": False, "message": "Invalid token"}
+    response = await delete_chat(user, chat_id)
+    return {"result": response}
+
+@app.post("/get_chat_messages")
+async def get_chat_messages(request: Request):
+    data = await request.json()
+    try:
+        user = data['user']
+        token = data['token']
+        chat_id = data['chat_id']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
+    if not await auth_user(user, token):
+        return {"result": False, "message": "Invalid token"}
+    response = await get_chat_messages(user, chat_id)
+    return {"result": response}
+
+@app.post("/add_chat")
+async def add_new_chat(request: Request):
+    data = await request.json()
+    try:
+        user = data['user']
+        token = data['token']
+        messages = data['messages']
+    except:
+        return {"result": False, "message": "Invalid parameters"}
+    if not await auth_user(user, token):
+        return {"result": False, "message": "Invalid token"}
+    response = await add_chat(user, messages)
+    return {"result": response}
 
 if __name__ == "__main__":
     workers = os.getenv("AMOUNT_OF_WORKERS")
