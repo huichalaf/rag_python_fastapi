@@ -40,6 +40,14 @@ free_limit = os.getenv("DAILY_QUERYS_FREE_LIMIT")
 basic_limit = int(basic_limit)
 pro_limit = int(pro_limit)
 free_limit = int(free_limit)
+whisper_pro_limit = os.getenv("MONTHLY_AUDIO_PRO_LIMIT")
+whisper_basic_limit = os.getenv("MONTHLY_AUDIO_BASIC_LIMIT")
+whisper_free_limit = os.getenv("MONTHLY_AUDIO_FREE_LIMIT")
+whisper_pro_limit = int(whisper_pro_limit)
+whisper_basic_limit = int(whisper_basic_limit)
+whisper_free_limit = int(whisper_free_limit)
+context_selected_path = os.getenv("CONTEXT_SELECTED_PATH")
+autentication_token = os.getenv("AUTENTICATION_TOKEN")
 
 class Message(BaseModel):
     user: str
@@ -63,7 +71,7 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     global files_path
     data = await request.json()  # Usar await para obtener los datos del body de la solicitud
     user = data['user']
-    user = get_user(user)
+    user = await get_user(user)
 
     files_prev = os.listdir(f"{files_path}subject/pending")
     files = []
@@ -76,29 +84,29 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     try:
         if len(files_pdf) > 0:
             for i in files_pdf:
-                text = read_one_pdf(f"{files_path}subject/pending/"+i)
+                text = await read_one_pdf(f"{files_path}subject/pending/"+i)
                 if text:
-                    save_document(user, i)
+                    await save_document(user, i)
     except Exception as e:
-        print("error en pdf: ",e)
+        print("\033[91merror en pdf: \033[0m",e)
         return {"result": False}
     try:
         if len(files_audio) > 0:
             for i in files_audio:
-                text = transcribe_audio(user, f"{files_path}subject/pending/"+i)
+                text = await transcribe_audio(user, f"{files_path}subject/pending/"+i)
                 if text:
-                    save_audio(user, i, text)
+                    await save_audio(user, i, text)
     except Exception as e:
-        print("error en audio: ",e)
+        print("\033[91merror en audio: \033[0m",e)
         return {"result": False}
     try:
         if len(files_txt) > 0:
             for i in files_txt:
-                text = read_one_txt(f"{files_path}subject/pending/"+i)
+                text = await read_one_txt(f"{files_path}subject/pending/"+i)
                 if text:
-                    save_text(user, i)
+                    await save_text(user, i)
     except Exception as e:
-        print("error en txt: ",e)
+        print("\033[91merror en txt: \033[0m",e)
         return {"result": False}
 
     total_files = []
@@ -118,9 +126,9 @@ async def get_context(request: Request):  # Agregar el parámetro Request
     user = data['user']
     prompt = data['text']
     try:
-        closer = get_closer(user, prompt, number=10)
+        closer = await get_closer(user, prompt, number=10)
     except Exception as e:
-        print(e)
+        print(f"\033[91m{e}\033[0m")
         return "Answer this question: "
     if type(closer) == bool:
         return "Answer this question: "
@@ -130,10 +138,10 @@ async def get_context(request: Request):  # Agregar el parámetro Request
 
 @app.post("/update_context_files")
 async def update_context_files(request: Request):
+    global context_selected_path
     data = await request.json()
     user = data['user']
     files = data['files']
-    context_selected_path = os.getenv("CONTEXT_SELECTED_PATH")
     with open(f"{context_selected_path}{user}.txt", 'w') as f:
         try:
             for i in files:
@@ -156,9 +164,9 @@ async def get_documents(request: Request):
     data = await request.json()
     user = data['user']
     token = data['token']
-    if not auth_user(user, token):
+    if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
-    documentos = documents_user(user)
+    documentos = await documents_user(user)
     #obtenemos los nombres reales
     df = pd.read_csv("names.csv")
     try:
@@ -185,7 +193,7 @@ async def delete_name(request: Request):  # Agregar el parámetro Request
     #conseguimos el hash_name del archivo
     hash_name = df[df.name == name_file].hash_name.tolist()[0]
     #borramos el archivo
-    delete_document(user, hash_name)
+    await delete_document(user, hash_name)
     try:
         os.remove(f"{files_path}subject/pending/"+hash_name)
     except:
@@ -198,29 +206,34 @@ async def delete_name(request: Request):  # Agregar el parámetro Request
     df.to_csv("names.csv", index=False)
     return True
 
+@app.post("/get_chats")
+async def get_chats():
+    chats = await get_all_chats()
+    return {"chats": chats}
+
 @app.post("/usage")
 async def get_usage(request: Request):
     data = await request.json()
     user = data['user']
     token = data['token']
-    if not auth_user(user, token):
+    if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
-    usage_query = get_daily_query_usage(user)
-    usage_whisper = get_monthly_whisper_usage(user)
-    usage_embeddings = get_monthly_embeddings_usage(user)
+    usage_query = await get_daily_query_usage(user)
+    usage_whisper = await get_monthly_whisper_usage(user)
+    usage_embeddings = await get_monthly_embeddings_usage(user)
     #transformamos los datos de uso en un porcentaje dependiendo del tipo de usuario:
-    type_user = get_type_user(user)
+    type_user = await get_type_user(user)
     if type_user == "free":
         usage_query = usage_query/free_limit*100
-        usage_whisper = usage_whisper/monthly_free_limit*100
+        usage_whisper = usage_whisper/whisper_free_limit*100
         usage_embeddings = usage_embeddings/monthly_free_limit*100
     elif type_user == "basic":
         usage_query = usage_query/basic_limit*100
-        usage_whisper = usage_whisper/monthly_basic_limit*100
+        usage_whisper = usage_whisper/whisper_basic_limit*100
         usage_embeddings = usage_embeddings/monthly_basic_limit*100
     elif type_user == "pro":
         usage_query = usage_query/pro_limit*100
-        usage_whisper = usage_whisper/monthly_pro_limit*100
+        usage_whisper = usage_whisper/whisper_pro_limit*100
         usage_embeddings = usage_embeddings/monthly_pro_limit*100
     #ahora acortamos los numeros
     usage_query = round(usage_query, 2)
@@ -238,18 +251,15 @@ async def chat_endpoint(request: Request):
     message = await request.json()
     user = message['user']
     token = message['token']
-    type_user = get_type_user(user)
+    type_user = await get_type_user(user)
     text = message['message']
     temperature = message['temperature']
     max_tokens = message['max_tokens']
 
-    print("question of user: ", user)
-
-    # Check user authentication and usage limits
-    if not auth_user(user, token):
+    if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     
-    daily_query_usage = get_daily_query_usage(user)
+    daily_query_usage = await get_daily_query_usage(user)
     if daily_query_usage >= free_limit and type_user == "free":
         return {"user": user, "message": "Exceeded daily query limit for free user", "image": None}
     if daily_query_usage >= basic_limit and type_user == "basic":
@@ -258,9 +268,8 @@ async def chat_endpoint(request: Request):
         return {"user": user, "message": "Exceeded daily query limit for pro user", "image": None}
 
     try:
-        print(f"User: {user}, Text: {text}, Temperature: {temperature}, Max tokens: {max_tokens}")
-        response = chat(user, text, temperature, max_tokens)
-        add_daily_query_usage(user, 1)
+        response = await chat(user, text, temperature, max_tokens)
+        await add_daily_query_usage(user, 1)
     except Exception as e:
         return {"user": user, "message": "Error in chat"}
 
@@ -269,10 +278,8 @@ async def chat_endpoint(request: Request):
     
     if state_chart:
         try:
-            print("imagen en la respuesta")
-            imagen = imagen_a_bytesio(f"{files_path}images/{user}.png")
+            imagen = await imagen_a_bytesio(f"{files_path}images/{user}.png")
             imagen_base64 = base64.b64encode(imagen).decode("utf-8")
-            print("imagen codificada")
         except Exception as e:
             return {"user": user, "message": response_text, "image": None}
         return {"user": user, "message": response_text, "image": imagen_base64}
@@ -290,12 +297,11 @@ async def create_exam(request: Request):
     questions = data['questions']
     difficulty = data['difficulty']
     hints = data['hints']
-    print("questions: ", questions)
-    if not auth_user(user, token):
+    if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     result = await qg.main(subject, questions, difficulty, hints, user)
     if result:
-        add_daily_query_usage(user, 1)
+        await add_daily_query_usage(user, 1)
         return {"result": True, "message": "Exam created successfully", "title": result}
     else:
         return {"result": False, "message": "Error creating exam", "title": None}
@@ -306,16 +312,12 @@ async def get_exam(request: Request):
     user = data['user']
     token = data['token']
     title = data['title']
-    if not auth_user(user, token):
+    if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     try:
-        print("title: ", title)
         with open(title, "rb") as f:
-            print("abriendo pdf")
             pdf = f.read()
-        print("pdf leido")
         pdf_base64 = base64.b64encode(pdf).decode("utf-8")
-        print("pdf codificado")
         return {"result": True, "message": "Exam retrieved successfully", "pdf": pdf_base64}
     except:
         return {"result": False, "message": "Error retrieving exam", "pdf": None}
@@ -325,7 +327,7 @@ async def auth0(request: Request):
     data = await request.json()
     user = data['user']
     token = data['token']
-    if not auth_user(user, token):
+    if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     return {"result": True, "message": "Valid token"}
 
@@ -334,7 +336,7 @@ async def get_user_type(request: Request):
     data = await request.json()
     user = data['user']
     token = data['token']
-    user_type = get_type_user(user)
+    user_type = await get_type_user(user)
     if user_type == False:
         return {"result": False, "message": "Invalid user"}
     return {"result": True, "message": "Valid user", "type": user_type}
@@ -342,7 +344,8 @@ async def get_user_type(request: Request):
 @app.post("/uploadfile")
 async def upload_file(request: Request, file: UploadFile, user: str = Form(...)):
     files_path = os.getenv("UPLOADED_FILES_PATH")
-    with open(f"{files_path}{user}_{change_filename(file.filename)}", "wb") as f:
+    new_name_file = await change_filename(file.filename)
+    with open(f"{files_path}{user}_{new_name_file}", "wb") as f:
         f.write(file.file.read())
     return {"message": "Archivo subido correctamente"}
 
@@ -351,9 +354,12 @@ async def update_token(request: Request):
     data = await request.json()
     user = data['user']
     token = data['token']
-    response = create_user(user, token, "free")
+    auth_token = data['auth_token']
+    if auth_token != autentication_token:
+        return {"result": False, "message": "Invalid token"}
+    response = await create_user(user, token, "free")
     if response==False:
-        response = update_credentials(user, token)
+        response = await update_credentials(user, token)
     return {"result": response}
 
 @app.post("/update_user_type")
@@ -362,7 +368,7 @@ async def update_user_type(request: Request):
     user = data['user']
     token = data['token']
     user_type = data['type']
-    response = update_type_user(user, token, user_type)
+    response = await update_type_user(user, token, user_type)
     return {"result": response}
 
 @app.post("/profile")
@@ -370,11 +376,10 @@ async def get_profile(request: Request):
     data = await request.json()
     user = data['user']
     token = data['token']
-    if not auth_user(user, token):
+    if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
-    user_type = get_user_data(user, token)
+    user_type = await get_user_data(user, token)
     if user_type == False:
-        print("invalid user")
         return {"result": False, "message": "Invalid user"}
     clave = 'created_at'
     if clave not in user_type.keys():
@@ -389,4 +394,4 @@ async def get_profile(request: Request):
 if __name__ == "__main__":
     workers = os.getenv("AMOUNT_OF_WORKERS")
     workers = int(workers)
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    asyncio.run(uvicorn.run(app, host="0.0.0.0", port=8000))

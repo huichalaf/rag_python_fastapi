@@ -23,23 +23,20 @@ dotenv.load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @retry(tries=3, delay=1, backoff=2)
-def chat(user, user_message, temperature, max_tokens):
+async def chat(user, user_message, temperature, max_tokens):
     state_chart = False
-    user_message = pre_process_math_prompt(user_message)
-    #print("prompt processed: ", user_message)
+    user_message = await pre_process_math_prompt(user_message)
     prompt_template = user_message
-    #print("prompt template: ", prompt_template)
-    cantidad_numeros = len(identify_numbers(user_message))
+    cantidad_numeros = len(await identify_numbers(user_message))
     messages = [{'role': 'user', 'content': prompt_template}, {'role': 'system', 'content': 'As a math teacher, provide a step-by-step explanation to the student in their language. Ensure that your solution is clear, concise, and easy to understand. Use examples and illustrations where necessary to aid comprehension. Avoid using technical jargon or complex terminology that may confuse the student. Remember to address the specific question asked by the student in your response. remember that you have math functions, use them'}]
-    functions = get_functions(prompt_template)
+    functions = await get_functions(prompt_template)
     if functions == False:
         functions = []
     start = time.time()
-    data_config = get_config()
+    data_config = await get_config()
     model = data_config["base_model"]
-    print("model: ", model)
     #model = "gpt-3.5-turbo-0613"
-    response = openai.ChatCompletion.create(
+    response = await openai.ChatCompletion.acreate(
         model = model,
         messages = messages,
         functions = functions,
@@ -47,13 +44,13 @@ def chat(user, user_message, temperature, max_tokens):
         max_tokens = max_tokens,
         temperature = temperature,
     )
-    #print(response)
     try:
         total_tokens = response["usage"]["total_tokens"]
-        add_daily_query_usage(user, total_tokens)
+        await add_daily_query_usage(user, total_tokens)
     except:
         pass
     response_message = response['choices'][0]['message']
+    print(response_message)
     if response_message.get("function_call"):
         while response_message.get("function_call"):
             available_functions = {
@@ -75,7 +72,6 @@ def chat(user, user_message, temperature, max_tokens):
 
             function_name = response_message["function_call"]["name"]
             function_to_call = available_functions[function_name]
-            print(function_to_call, json.loads(response_message["function_call"]["arguments"]))
             if function_to_call == evaluate_expressions:
                 function_args = json.loads(response_message["function_call"]["arguments"])
                 function_response = function_to_call(
@@ -138,7 +134,7 @@ def chat(user, user_message, temperature, max_tokens):
                 except:
                     function_args["upLimit"] = 10
                     function_args["lowLimit"] = -10
-                function_response = function_to_call(
+                function_response = await function_to_call(
                     function_args["function"],
                     function_args["upLimit"],
                     function_args["lowLimit"],
@@ -195,7 +191,6 @@ def chat(user, user_message, temperature, max_tokens):
                     function_args["operation_type"],
                     function_args["coordinates"],
                 )
-            print(function_response)
             messages.append(response_message)
             messages.append({'role': 'function', 'name': function_name,'content': str(function_response)})
             second_response = openai.ChatCompletion.create(
@@ -203,14 +198,12 @@ def chat(user, user_message, temperature, max_tokens):
                 messages = messages,
                 functions = functions,
             )
-            #print(second_response)
             try:
                 total_tokens = second_response["usage"]["total_tokens"]
-                add_daily_query_usage(user, total_tokens)
+                await add_daily_query_usage(user, total_tokens)
             except:
                 pass
             response_message = second_response['choices'][0]['message']
-    print("time: ", time.time() - start)
     return [response_message['content'], state_chart]
 
 if __name__ == '__main__':

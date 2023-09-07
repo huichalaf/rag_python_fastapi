@@ -12,14 +12,11 @@ import io
 
 dotenv.load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
-user_mongo = os.getenv("USER_MONGO")
-password_mongo = os.getenv("PASSWORD_MONGO")
 
-#print(user_mongo, password_mongo)
 database_host = os.getenv("DATABASE_HOST")
 client = MongoClient(f"mongodb://{database_host}:27017/")
 
-def change_filename(filename):
+async def change_filename(filename):
     filename = filename.replace(" ", "_")
     filename = filename.replace(":", "_")
     filename = filename.replace("(", "_")
@@ -33,7 +30,7 @@ def change_filename(filename):
     filename = filename.replace("/", "_")
     return filename
 
-def get_user(user):
+async def get_user(user):
     #dividimos por ;
     user = user.split(";")[0]
     #quitamos user=
@@ -41,32 +38,29 @@ def get_user(user):
     user = user.replace("%40", "@")
     return user
 
-def get_config():
+async def get_config():
     with open("config.json", "r") as json_file:
         data = json.load(json_file)
     return data
     
-def get_user_input(text):
+async def get_user_input(text):
     #buscamos donde dice Answer this question:
     index = text.find("Answer this question:")
     #tomamos el texto desde ahí hasta el final
     text = text[index:]
     return text
 
-def imagen_a_bytesio(ruta_imagen):
+async def imagen_a_bytesio(ruta_imagen):
     imagen = Image.open(ruta_imagen)
     buffer = io.BytesIO()
     imagen.save(buffer, format='PNG')
     return buffer.getvalue()
 
-def auth_user(user, token):
-    #we create the database mongodb connection
-    print(user, token)
+async def auth_user(user, token):
     db = client["access_tokens"]
     collection = db["tokens"]
     try:
         result = collection.find_one({"_id": user})
-        print(result)
         if result["token"] == token:
             return True
         else:
@@ -74,9 +68,7 @@ def auth_user(user, token):
     except:
         return False
 
-def update_credentials(user, token):
-    #we create the database mongodb connection
-    print(f"new credentials: {user}, {token}")
+async def update_credentials(user, token):
     db = client["access_tokens"]
     collection = db["tokens"]
     try:
@@ -89,7 +81,7 @@ def update_credentials(user, token):
         except:
             return False
 
-def get_type_user(user):
+async def get_type_user(user):
     db = client["users_data"]
     collection = db["users"]
     try:
@@ -98,10 +90,10 @@ def get_type_user(user):
     except:
         return False
 
-def get_user_data(user, token):
+async def get_user_data(user, token):
     db = client["users_data"]
     collection = db["users"]
-    if not auth_user(user, token):
+    if not await auth_user(user, token):
         return False
     try:
         result = collection.find_one({"_id": user})
@@ -109,10 +101,10 @@ def get_user_data(user, token):
     except:
         return False
 
-def update_type_user(user, token, type_user):
+async def update_type_user(user, token, type_user):
     db = client["users_data"]
     collection = db["users"]
-    if not auth_user(user, token):
+    if not await auth_user(user, token):
         return False
     try:
         collection.update_one({"_id": user}, {"$set": {"type_user": type_user}})
@@ -120,12 +112,11 @@ def update_type_user(user, token, type_user):
     except:
         return False
 
-def create_user(user, token, type_user):
+async def create_user(user, token, type_user):
     db = client["users_data"]
     collection = db["users"]
     db2 = client["access_tokens"]
     collection2 = db2["tokens"]
-    print("creating user")
     try:
         collection.insert_one({"_id": user, "token": token, "type_user": type_user, "created_at": datetime.now()})
         collection2.insert_one({"_id": user, "token": token})
@@ -133,7 +124,7 @@ def create_user(user, token, type_user):
     except:
         return False
 
-def identify_numbers(text):
+async def identify_numbers(text):
     text_list = list(text)
     numbers = []
     number = ''
@@ -149,7 +140,7 @@ def identify_numbers(text):
         numbers.append(float(number))
     return numbers
 
-def identify_operators(text):
+async def identify_operators(text):
     operators = []
     
     if '**' in text:
@@ -160,10 +151,9 @@ def identify_operators(text):
     for t in text_list:
         if t in ['+', '-', '*', 'x', '/', '^', 'sqrt', '√']:
             operators.append(t)
-    print("operators: ", operators)
     return operators
 
-def pre_process_math_prompt(prompt):
+async def pre_process_math_prompt(prompt):
     
     prompt_lista = list(prompt)
     prompt_to_return = ''
@@ -188,11 +178,13 @@ def pre_process_math_prompt(prompt):
                 pass
     return prompt_to_return
 
-def get_embedding(text, model="text-embedding-ada-002"):
+async def get_embedding(text, model="text-embedding-ada-002"):
     text = text.replace("\n", " ")
-    return openai.Embedding.create(input=[text], model=model)['data'][0]['embedding']
+    result = await openai.Embedding.acreate(input=[text], model=model)
+    result_data = result['data'][0]['embedding']
+    return result_data
 
-def embed_functions():
+async def embed_functions():
     with open("functions.json", "r") as json_file:
         data = json.load(json_file)
     functions = data
@@ -209,10 +201,10 @@ def embed_functions():
     functions_embeddings.to_csv("embed_functions.csv", index=False)
     return True
 
-def cosine_similarity(embedding1, embedding2):
+async def cosine_similarity(embedding1, embedding2):
     return np.dot(embedding1, embedding2)/(np.linalg.norm(embedding1)*np.linalg.norm(embedding2))
 
-def read_embeddings_from_csv(file_path):
+async def read_embeddings_from_csv(file_path):
     functions_embeddings = pd.read_csv(file_path)
     embeddings = functions_embeddings["embedding"].tolist()
     embeddings = [eval(embedding) for embedding in embeddings]
@@ -220,16 +212,15 @@ def read_embeddings_from_csv(file_path):
     descriptions = functions_embeddings["description"].tolist()
     return names, descriptions, embeddings
 
-def get_functions(prompt):
-    embedding_prompt = get_embedding(prompt)
+async def get_functions(prompt):
+    embedding_prompt = await get_embedding(prompt)
     with open("functions.json", "r") as json_file:
         data = json.load(json_file)
     functions = data
-    #print("functions: ", functions)
-    names, descriptions, functions_embeddings = read_embeddings_from_csv("embed_functions.csv")
+    names, descriptions, functions_embeddings = await read_embeddings_from_csv("embed_functions.csv")
     similarities = []
     for embedding in functions_embeddings:
-        similarities.append(cosine_similarity(embedding_prompt, embedding))
+        similarities.append(await cosine_similarity(embedding_prompt, embedding))
     #filtramos por todas las que tengan similarities menor a 0.7
     functions_past = functions
     functions = [function for function, similarity in zip(functions, similarities) if similarity > 0.725]
@@ -284,7 +275,7 @@ def get_functions(prompt):
     
     return function1, function2, function3, function4, function5
 
-def get_context_user(user):
+async def get_context_user(user):
     #el archivo es .json
     try:
         with open(f'context/{user}_context.json', 'r') as json_file:
@@ -299,7 +290,7 @@ def get_context_user(user):
         os.system(f'touch context/{user}_context.json')
         return []
 
-def update_context_user(user, context):
+async def update_context_user(user, context):
     #el archivo es .json
     #context es una lista que contiene diccionarios
     with open(f'context/{user}_context.json', 'w') as json_file:

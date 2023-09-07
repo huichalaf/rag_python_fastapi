@@ -8,13 +8,11 @@ from pymongo import MongoClient
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
 
-user_mongo = os.getenv("USER_MONGO")
-password_mongo = os.getenv("PASSWORD_MONGO")
 database_host = os.getenv("DATABASE_HOST")
 client = MongoClient(f"mongodb://{database_host}:27017/")
 
 
-def calculate_tokens(string: str, encoding_name="cl100k_base") -> int:
+async def calculate_tokens(string: str, encoding_name="cl100k_base") -> int:
     """Returns the number of tokens in a text string."""
     encoding = tiktoken.get_encoding(encoding_name)
     text = ''
@@ -26,22 +24,21 @@ def calculate_tokens(string: str, encoding_name="cl100k_base") -> int:
                 text += i.page_content
     else:
         text = string
-    #print("text: ", text)
     num_tokens = len(encoding.encode(text))
     return num_tokens
 
-def chat_gpt_cost_calculator(num_tokens):
+async def chat_gpt_cost_calculator(num_tokens):
     num_tokens /= 1000
     return num_tokens * 0.002
     
-def whisper_cost_calculator(num_minutes):
+async def whisper_cost_calculator(num_minutes):
     return num_minutes * 0.006
 
-def embeddings_cost_calculator(num_tokens):
+async def embeddings_cost_calculator(num_tokens):
     num_tokens /= 1000
     return num_tokens * 0.0001
 
-def ask_limit(user, type):
+async def ask_limit(user, type):
     collection = db['chat']
     collection2 = db['whisper']
     collection3 = db['embed']
@@ -72,8 +69,7 @@ def ask_limit(user, type):
     except:
         return False
 
-def add_daily_query_usage(user, questions):
-    print("añadiendo query")
+async def add_daily_query_usage(user, questions):
     db = client['chat']
     collection = db['querys']
     try:
@@ -82,15 +78,12 @@ def add_daily_query_usage(user, questions):
         collection.delete_one({'_id': user})
         query = query + 1
         collection.insert_one({'_id': user, 'query': query})
-        print("añadido")
         return True
     except:
         collection.insert_one({'_id': user, 'query': 1})
-        print("añadido")
         return True
 
-def add_monthly_embeddings_usage(user, tokens):
-    print("añadiendo tokens")
+async def add_monthly_embeddings_usage(user, tokens):
     db = client['embed']
     collection = db['tokens']
     try:
@@ -98,15 +91,12 @@ def add_monthly_embeddings_usage(user, tokens):
         collection.delete_one({'_id': user})
         tokens += tokens2
         collection.insert_one({'_id': user, 'tokens': tokens})
-        print("añadido")
         return True
     except:
         collection.insert_one({'_id': user, 'tokens': tokens})
-        print("añadido")
         return True
 
-def add_monthly_whisper_usage(user, minutes):
-    print("añadiendo minutos")
+async def add_monthly_whisper_usage(user, minutes):
     db = client['whisper']
     collection = db['minutes']
     try:
@@ -114,14 +104,12 @@ def add_monthly_whisper_usage(user, minutes):
         collection.delete_one({'_id': user})
         minutes = minutes_past + minutes
         collection.insert_one({'_id': user, 'minutes': minutes})
-        print("añadido")
         return True
     except:
         collection.insert_one({'_id': user, 'minutes': minutes})
-        print("añadido")
         return True
 
-def get_daily_query_usage(user):
+async def get_daily_query_usage(user):
     db = client['chat']
     collection = db['querys']
     try:
@@ -130,7 +118,7 @@ def get_daily_query_usage(user):
     except:
         return 0
     
-def get_monthly_embeddings_usage(user):
+async def get_monthly_embeddings_usage(user):
     db = client['embed']
     collection = db['tokens']
     try:
@@ -139,7 +127,7 @@ def get_monthly_embeddings_usage(user):
     except:
         return 0
 
-def get_monthly_whisper_usage(user):
+async def get_monthly_whisper_usage(user):
     db = client['whisper']
     collection = db['minutes']
     try:
@@ -148,7 +136,7 @@ def get_monthly_whisper_usage(user):
     except:
         return 0
 
-def add_cost(user, amount, category):
+async def add_cost(user, amount, category):
     if category == "embeddings":
         amount = embeddings_cost_calculator(amount)
     elif category == "chat":

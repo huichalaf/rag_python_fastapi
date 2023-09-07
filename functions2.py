@@ -11,14 +11,11 @@ from datetime import date
 dotenv.load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
-user_mongo = os.getenv("USER_MONGO")
-password_mongo = os.getenv("PASSWORD_MONGO")
 
-#print(user_mongo, password_mongo)
 database_host = os.getenv("DATABASE_HOST")
 client = MongoClient(f"mongodb://{database_host}:27017/")
 
-def get_audio_duration(ruta_archivo):
+async def get_audio_duration(ruta_archivo):
     try:
         audio = AudioSegment.from_file(ruta_archivo)
         duracion_segundos = len(audio) / 1000.0  # Convertir a segundos
@@ -27,7 +24,7 @@ def get_audio_duration(ruta_archivo):
         print(f"Error al obtener la duración del audio: {e}")
         return None
 
-def add_document(user, name):
+async def add_document(user, name):
     try:
         db = client['embeddings']
         collection = db["users"]
@@ -35,7 +32,6 @@ def add_document(user, name):
             document = collection.find_one({"_id": user})
             documents = document["documents"]
             dates = document["dates"]
-            print(name, documents)
             if name not in documents:
                 documents.append(name)
                 dates.append(str(date.today()))
@@ -48,7 +44,7 @@ def add_document(user, name):
     except:
         return False
 
-def delete_document(user,name):
+async def delete_document(user,name):
     try:
         db = client['embeddings']
         collection = db["users"]
@@ -66,7 +62,7 @@ def delete_document(user,name):
     except:
         return False
 
-def documents_user(user):
+async def documents_user(user):
     try:
         db = client['embeddings']
         collection = db["users"]
@@ -79,7 +75,7 @@ def documents_user(user):
     except:
         return False
 
-def rename_by_hash(path, text, user):
+async def rename_by_hash(path, text, user):
     files_path = os.getenv("FILES_PATH")
     extension = path.split(".")[-1]
     if type(text) == list:
@@ -93,14 +89,14 @@ def rename_by_hash(path, text, user):
     #os.remove("subject/"+path)
     return new_name
 
-def get_all_text(data):
+async def get_all_text(data):
     keys = list(data.keys())
     text = []
     for i in keys:
         text.extend(data[i]['text'].tolist())
     return text
 
-def get_all_embeddings(data):
+async def get_all_embeddings(data):
     keys = list(data.keys())
     embeddings = []
     for i in keys:
@@ -110,8 +106,7 @@ def get_all_embeddings(data):
 def cosine_similarity(a, b):
     return np.dot(a, b)/(np.linalg.norm(a)*np.linalg.norm(b))
 
-def divide_text_str(text):
-    print("dividiendo texto")
+async def divide_text_str(text):
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=256,
         chunk_overlap=20,
@@ -121,15 +116,15 @@ def divide_text_str(text):
     text_pure = text_splitter.split_text(text)
     return text_pure
 
-def transcribe_audio(user, file):
+async def transcribe_audio(user, file):
 
     audio_file = open(file, "rb")
     file1 = file
     file = file.split('.')[:-1]
     file = '.'.join(file)
     #calculamos el tiempo del audio
-    duration = get_audio_duration(file1)
-    add_monthly_whisper_usage(user, duration)
+    duration = await get_audio_duration(file1)
+    await add_monthly_whisper_usage(user, duration)
     os.system(f"mkdir {file}")
     os.system(f"ffmpeg -i {file1} -f segment -segment_time 60 -c copy {file}/out%03d.wav")
     total_text = ''
@@ -137,12 +132,11 @@ def transcribe_audio(user, file):
 
     for file in os.listdir(f"{file}"):
         if file.endswith(".wav"):
-            print(base_path+file)
             file_audio = open(base_path+file, "rb")
-            transcript = openai.Audio.transcribe("whisper-1", file_audio)
+            transcript = await openai.Audio.atranscribe("whisper-1", file_audio)
             total_text += transcript["text"]
 
-    text = divide_text_str(total_text)
+    text = await divide_text_str(total_text)
     text_return = []
 
     for part in text:
@@ -151,11 +145,10 @@ def transcribe_audio(user, file):
             temporal += part[i]
         text_return.append(temporal)
 
-    print("eliminando ", base_path)
     os.system(f"rm -r {base_path}")
     return text_return
 
-def download_music_mp3(link):
+async def download_music_mp3(link):
     #aca descargamos el audio del video en formato mp3
     yt = YouTube(link)
     yt.streams.filter(only_audio=True).first().download()

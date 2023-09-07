@@ -4,19 +4,19 @@ import time as tm
 from sympy import symbols, simplify, sympify
 import sys
 import io
+import os
 import math
+from dotenv import load_dotenv
 
-def graficar_funcion(user, funcion, intervalo_inferior, intervalo_superior, expresion):
-    # Generar puntos equidistantes en el intervalo dado
-    try:
-        os.system("rm images/"+user+".png")
-    except:
-        pass
+load_dotenv()
+images_path = os.getenv("IMAGES_PATH")
+
+async def graficar_funcion(user, funcion, intervalo_inferior, intervalo_superior, expresion):
+    global images_path
     y = []
     x = []
     i=intervalo_inferior
     incremento_ciclo = (intervalo_superior-intervalo_inferior)/100
-    print("incremento_ciclo: ", incremento_ciclo)
     while i <= intervalo_superior:
         try:
             y.append(float(funcion(i)))
@@ -31,9 +31,11 @@ def graficar_funcion(user, funcion, intervalo_inferior, intervalo_superior, expr
     plt.title(f'Gráfico de la función {expresion}')
     plt.grid(True)
     #plt.show()
-    plt.savefig(f"images/{user}.png")
+    start1 = tm.time()
+    plt.savefig(f"{images_path}{user}.png")
+    print("Tiempo de guardado: ", tm.time() - start1)
     
-def crear_funcion(expresion):
+async def crear_funcion(expresion):
     x = symbols('x')
     expresion = expresion.replace("^", "**")
     
@@ -46,8 +48,7 @@ def crear_funcion(expresion):
 
     return funcion_resultado
 
-def create_graph(expresion, intervalo_inferior, intervalo_superior, user):
-    print("expresion: ", expresion)
+async def create_graph(expresion, intervalo_inferior, intervalo_superior, user):
     if intervalo_inferior > intervalo_superior:
         temporal = intervalo_inferior
         intervalo_inferior = intervalo_superior
@@ -56,21 +57,16 @@ def create_graph(expresion, intervalo_inferior, intervalo_superior, user):
         intervalo_inferior = -1
         intervalo_superior = 1
 
-    print("intervalo_inferior: ", intervalo_inferior)
-    print("intervalo_superior: ", intervalo_superior)
     intervalo_inferior = float(intervalo_inferior)
     intervalo_superior = float(intervalo_superior)
     try:
-        mi_funcion = crear_funcion(expresion)
-        print("funcion: ", mi_funcion)
+        mi_funcion = await crear_funcion(expresion)
         start = tm.time()
-        graficar_funcion(user, mi_funcion, intervalo_inferior, intervalo_superior, expresion)
+        await graficar_funcion(user, mi_funcion, intervalo_inferior, intervalo_superior, expresion)
         buffer = io.BytesIO()
         plt.savefig(buffer, format='png')
         buffer.seek(0)
         plt.clf()
-        #print("Tiempo de ejecución: ", tm.time() - start)
-        # Devolver la imagen
         image = (b'--frame\r\n'
                 b'Content-Type: image/png\r\n\r\n' + buffer.getvalue() + b'\r\n')
         return True
