@@ -47,7 +47,6 @@ whisper_free_limit = os.getenv("MONTHLY_AUDIO_FREE_LIMIT")
 whisper_pro_limit = int(whisper_pro_limit)
 whisper_basic_limit = int(whisper_basic_limit)
 whisper_free_limit = int(whisper_free_limit)
-context_selected_path = os.getenv("CONTEXT_SELECTED_PATH")
 autentication_token = os.getenv("AUTENTICATION_TOKEN")
 
 class Message(BaseModel):
@@ -127,7 +126,7 @@ async def save_context(request: Request):  # Agregar el parámetro Request
             for i in files_txt:
                 text = await read_one_txt(f"{files_path}subject/pending/"+i)
                 if text:
-                    response_save = await save_text(user, i)
+                    response_save = await save_text(user, i, text)
                     try:
                         if not response_save:
                             await update_status(user, "loading_documents", "inactive")
@@ -144,15 +143,20 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     total_files.extend(files_pdf)
     total_files.extend(files_txt)
     if len(total_files) > 0:
-        total_existed_files = await get_selected_files(user)
-        #juntamos ambas listas
         try:
-            total_existed_files = total_existed_files[0].files
-        except:
-            total_existed_files = []
-        total_existed_files.extend(total_files)
-        await add_selected_files(user, total_existed_files)
-
+            total_existed_files = await get_selected_files(user)
+            try:
+                total_existed_files = total_existed_files[0].files
+            except:
+                total_existed_files = []
+            total_files2 = []
+            for i in total_files:
+                total_files2.append(i.replace(user, ""))
+            total_files2.extend(total_existed_files)
+            await delete_all_selected_files(user)
+            await add_selected_files(user, total_files2)
+        except Exception as e:
+            print(f"\033{e}\033[0m")
     await update_status(user, "loading_documents", "inactive")
     return {"result": True, "message": "Documents loaded successfully"}
         
@@ -181,7 +185,6 @@ async def get_context(request: Request):  # Agregar el parámetro Request
 
 @app.post("/update_context_files")
 async def update_context_files(request: Request):
-    global context_selected_path
     data = await request.json()
     try:
         user = data['user']
@@ -529,6 +532,4 @@ async def add_new_chat(request: Request):
     return {"result": response}
 
 if __name__ == "__main__":
-    workers = os.getenv("AMOUNT_OF_WORKERS")
-    workers = int(workers)
-    asyncio.run(uvicorn.run(app, host="0.0.0.0", port=8000, workers=4))
+    asyncio.run(uvicorn.run(app, host="0.0.0.0", port=8000))

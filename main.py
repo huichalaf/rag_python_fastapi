@@ -47,9 +47,7 @@ async def get_embedding(text, model="text-embedding-ada-002"):
 
 async def get_embeddings(text):
     model = OpenAIEmbeddings()
-    print("calculando embeddings")
     embeddings = await model.aembed_documents(text)
-    print("calculado")
     return embeddings
 
 async def open_embeddings(file_name):
@@ -60,6 +58,19 @@ async def open_embeddings(file_name):
     df = pd.read_csv(new_file_name)
     df['embedding'] = df.embedding.apply(eval).apply(np.array)
     return df
+
+async def read_one_txt(path):
+    def read_txt_in_thread(path):
+        try:
+            with open(path, 'r') as file:
+                text = file.read()
+                return text
+        except Exception as e:
+            print(f"\033[91mLeyendo txt: {e}\033[0m")
+            return False
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        return await asyncio.to_thread(read_txt_in_thread, path)
 
 async def read_one_pdf(path):
     def read_pdf_in_thread(path):
@@ -99,11 +110,8 @@ async def save_document(user, path):
             #eliminamos el archivo
             os.remove(f"{files_path}subject/pending/"+path)
             return False
-        print(total_tokens)
         await add_monthly_embeddings_usage(user, total_tokens)
-        print("embeddings añadidos")
         embeddings = await get_embeddings(text)
-        print("embeddings ready")
         name = await rename_by_hash(path, text, user)
         await add_document(user, name)
         df = pd.DataFrame({'text': text, 'embedding': embeddings})
@@ -136,11 +144,9 @@ async def save_audio(user, path, text):
         print(f"\033[91m{e}\033[0m")
         return False
 
-async def save_text(user, path):
+async def save_text(user, path, text):
     global files_path
     try:
-        test = open(path, "r")
-        text = test.read()
         total_tokens = await calculate_tokens(text)
         posible = await ask_add(user, "embeddings", total_tokens)
         if not posible:
@@ -179,12 +185,10 @@ async def load_embeddings(user):
     documentos_selected = await get_selected_files(user)
     try:
         documentos_selected = documentos_selected[0].files
-        print(documentos_selected)
     except:
         documentos_selected = []
     indices = []
     for i in documentos_selected:
-        print(i, documentos)
         if i in documentos:
             indices.append(documentos.index(i))
     documentos_name = [documentos[i] for i in indices]
