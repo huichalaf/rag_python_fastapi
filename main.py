@@ -103,7 +103,6 @@ async def save_document(user, path):
     global files_path
     try:
         text = await read_one_pdf(f"{files_path}subject/pending/"+path)
-        print("TEXTO OBTENIDO")
         total_tokens = await calculate_tokens(text)
         posible = await ask_add(user, "embeddings", total_tokens)
         if not posible:
