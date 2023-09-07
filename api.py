@@ -425,6 +425,7 @@ async def upload_file(request: Request, file: UploadFile, user: str = Form(...))
 
 @app.post("/update_token")
 async def update_token(request: Request):
+    global autentication_token
     data = await request.json()
     try:
         user = data['user']
@@ -441,13 +442,17 @@ async def update_token(request: Request):
 
 @app.post("/update_user_type")
 async def update_user_type(request: Request):
+    global autentication_token
     data = await request.json()
     try:
         user = data['user']
         token = data['token']
         user_type = data['type']
+        auth_token = data['auth_token']
     except:
         return {"result": False, "message": "Invalid parameters"}
+    if auth_token != autentication_token:
+        return {"result": False, "message": "Invalid token"}
     response = await update_type_user(user, token, user_type)
     return {"result": response}
 
