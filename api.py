@@ -172,7 +172,7 @@ async def get_context(request: Request):  # Agregar el parámetro Request
     if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     try:
-        closer = await get_closer(user, prompt, number=10)
+        closer = await get_closer(user, prompt, number=5)
     except Exception as e:
         print(f"\033[91m{e}\033[0m")
         return "Answer this question: "

@@ -18,7 +18,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 async def divide_text_pdf_str(text):
     text_splitter = RecursiveCharacterTextSplitter(
     # Set a really small chunk size, just to show.
-    chunk_size = 256,
+    chunk_size = 512,
     chunk_overlap  = 20,
     length_function = len)
     texts = text_splitter.create_documents([text])
@@ -30,7 +30,7 @@ async def divide_text_pdf_str(text):
 def divide_text_pdf_str_sync(text):
     text_splitter = RecursiveCharacterTextSplitter(
     # Set a really small chunk size, just to show.
-    chunk_size = 256,
+    chunk_size = 512,
     chunk_overlap  = 20,
     length_function = len)
     texts = text_splitter.create_documents([text])

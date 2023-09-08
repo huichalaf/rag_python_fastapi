@@ -108,7 +108,7 @@ def cosine_similarity(a, b):
 
 async def divide_text_str(text):
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=256,
+        chunk_size=512,
         chunk_overlap=20,
         length_function=len,
     )
