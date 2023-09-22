@@ -4,18 +4,17 @@ import dotenv
 import os
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, date
 import time as tm
-from pymongo import MongoClient
-from cost_manager import calculate_tokens, ask_add, ask_limit, add_daily_query_usage, add_monthly_embeddings_usage, add_monthly_whisper_usage, get_daily_query_usage, get_monthly_embeddings_usage, get_monthly_whisper_usage
 from PIL import Image
 import io
+import sys
+from hashlib import sha256
+import openai
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 dotenv.load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
-
-database_host = os.getenv("DATABASE_HOST")
-client = MongoClient(f"mongodb://{database_host}:27017/")
 
 async def change_filename(filename):
     filename = filename.replace(" ", "_")
@@ -56,74 +55,6 @@ async def imagen_a_bytesio(ruta_imagen):
     buffer = io.BytesIO()
     imagen.save(buffer, format='PNG')
     return buffer.getvalue()
-
-async def auth_user(user, token):
-    db = client["access_tokens"]
-    collection = db["tokens"]
-    try:
-        result = collection.find_one({"_id": user})
-        if result["token"] == token:
-            return True
-        else:
-            return False
-    except:
-        return False
-
-async def update_credentials(user, token):
-    db = client["access_tokens"]
-    collection = db["tokens"]
-    try:
-        collection.insert_one({"_id": user, "token": token})    
-        return True
-    except:
-        try:
-            collection.update_one({"_id": user}, {"$set": {"token": token}})
-            return True
-        except:
-            return False
-
-async def get_type_user(user):
-    db = client["users_data"]
-    collection = db["users"]
-    try:
-        result = collection.find_one({"_id": user})
-        return result["type_user"]
-    except:
-        return False
-
-async def get_user_data(user, token):
-    db = client["users_data"]
-    collection = db["users"]
-    if not await auth_user(user, token):
-        return False
-    try:
-        result = collection.find_one({"_id": user})
-        return result
-    except:
-        return False
-
-async def update_type_user(user, token, type_user):
-    db = client["users_data"]
-    collection = db["users"]
-    if not await auth_user(user, token):
-        return False
-    try:
-        collection.update_one({"_id": user}, {"$set": {"type_user": type_user}})
-        return True
-    except:
-        return False
-
-async def create_user(user, token, type_user):
-    db = client["users_data"]
-    collection = db["users"]
-    db2 = client["access_tokens"]
-    collection2 = db2["tokens"]
-    try:
-        collection.insert_one({"_id": user, "token": token, "type_user": type_user, "created_at": datetime.now()})
-        collection2.insert_one({"_id": user, "token": token})
-        return True
-    except:
-        return False
 
 async def identify_numbers(text):
     text_list = list(text)
@@ -276,24 +207,43 @@ async def get_functions(prompt):
     
     return function1, function2, function3, function4, function5
 
-async def get_context_user(user):
-    #el archivo es .json
-    try:
-        with open(f'context/{user}_context.json', 'r') as json_file:
-            data = json.load(json_file)
-        #data es una lista
-        if len(data) == 0:
-            return []
-        if data=='':
-            return []
-        return data
-    except:
-        os.system(f'touch context/{user}_context.json')
-        return []
+async def rename_by_hash(path, text, user):
+    files_path = os.getenv("FILES_PATH")
+    extension = path.split(".")[-1]
+    if type(text) == list:
+        text = " ".join(text)
+    hash_object = sha256(text.encode())
+    hex_dig = hash_object.hexdigest()
+    new_name = hex_dig+"."+extension
+    with open('names.csv', 'a') as f:
+        f.write(f"{new_name},{path},{user}\n")
+    os.rename(f"{files_path}subject/pending/"+path, f"{files_path}subject/embed/"+new_name)
+    #os.remove("subject/"+path)
+    return new_name
 
-async def update_context_user(user, context):
-    #el archivo es .json
-    #context es una lista que contiene diccionarios
-    with open(f'context/{user}_context.json', 'w') as json_file:
-        json.dump(context, json_file)
-    return True
+async def get_all_text(data):
+    keys = list(data.keys())
+    text = []
+    for i in keys:
+        text.extend(data[i]['text'].tolist())
+    return text
+
+async def get_all_embeddings(data):
+    keys = list(data.keys())
+    embeddings = []
+    for i in keys:
+        embeddings.extend(data[i]['embedding'].tolist())
+    return embeddings
+
+def cosine_similarity(a, b):
+    return np.dot(a, b)/(np.linalg.norm(a)*np.linalg.norm(b))
+
+async def divide_text_str(text):
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=512,
+        chunk_overlap=20,
+        length_function=len,
+    )
+    text_pre_pure = text_splitter.create_documents([text])
+    text_pure = text_splitter.split_text(text)
+    return text_pure
