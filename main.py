@@ -12,6 +12,7 @@ from functions import *
 from database import get_files, get_selected_files
 dotenv.load_dotenv()
 files_path = os.getenv("FILES_PATH")
+embeddings_path = os.getenv("EMBEDDINGS_FOLDER")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 async def divide_text_pdf_str(text):
@@ -50,11 +51,11 @@ async def get_embeddings(text):
     return embeddings
 
 async def open_embeddings(file_name):
-    global files_path
+    global embeddings_path
     if '.' in file_name:
         file_name = file_name.split(".")[0:-1]
         file_name = "".join(file_name)
-    new_file_name = f"{files_path}embeddings/"+file_name+".csv"
+    new_file_name = embeddings_path+file_name+".csv"
     df = pd.read_csv(new_file_name)
     df['embedding'] = df.embedding.apply(eval).apply(np.array)
     return df
@@ -100,7 +101,7 @@ async def read_one_pdf(path):
         return await asyncio.to_thread(read_pdf_in_thread, path)
 
 async def save_document(user, path):
-    global files_path
+    global embeddings_path
     try:
         text = await read_one_pdf(f"{files_path}subject/pending/"+path)
         posible=True
@@ -113,14 +114,14 @@ async def save_document(user, path):
         df = pd.DataFrame({'text': text, 'embedding': embeddings})
         file_name = name.split(".")[0:-1]
         file_name = "".join(file_name)
-        df.to_csv(f"{files_path}embeddings/"+file_name+".csv")
+        df.to_csv(embeddings_path+file_name+".csv")
         return embeddings, text, file_name
     except Exception as e:
         print(f"\033[91m{e}\033[0m")
         return False
 
 async def save_text(user, path, text):
-    global files_path
+    global embeddings_path
     try:
         total_tokens = await calculate_tokens(text)
         posible=True
@@ -132,7 +133,7 @@ async def save_text(user, path, text):
         df = pd.DataFrame({'text': text, 'embedding': embeddings})
         file_name = name.split(".")[0:-1]
         file_name = "".join(file_name)
-        df.to_csv(f"{files_path}embeddings/"+file_name+".csv")
+        df.to_csv(embeddings_path+file_name+".csv")
         return embeddings, text, file_name
     except Exception as e:
         print(f"\033[91m{e}\033[0m")

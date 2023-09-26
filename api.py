@@ -27,6 +27,7 @@ files_path = os.getenv("FILES_PATH")
 monthly_basic_limit = os.getenv("MONTHLY_EMBEDDINGS_BASIC_LIMIT")
 monthly_pro_limit = os.getenv("MONTHLY_EMBEDDINGS_PRO_LIMIT")
 monthly_free_limit = os.getenv("MONTHLY_EMBEDDINGS_FREE_LIMIT")
+embeddings_folder = os.getenv("EMBEDDINGS_FOLDER")
 monthly_basic_limit = int(monthly_basic_limit)
 monthly_pro_limit = int(monthly_pro_limit)
 monthly_free_limit = int(monthly_free_limit)
@@ -180,7 +181,7 @@ async def delete_name(request: Request):  # Agregar el parámetro Request
         embed_name = "".join(embed_name)
     else:
         embed_name = hash_name
-    os.remove(f"{files_path}embeddings/"+embed_name+".csv")
+    os.remove(embeddings_folder+embed_name+".csv")
     #borramos el registro del archivo
     df = df[df.name != name_file]
     df.to_csv("names.csv", index=False)
