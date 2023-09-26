@@ -8,6 +8,7 @@ load_dotenv()
 
 db_user = os.getenv("MONGODB_USER")
 db_password = os.getenv("MONGODB_PASSWORD")
+base_token = os.getenv("TOKEN_CONTEXT")
 
 try:
     client = pymongo.MongoClient(f"mongodb+srv://{db_user}:{db_password}@serverlessinstance0.oo6ew3r.mongodb.net/?retryWrites=true&w=majority&appName=AtlasApp")
@@ -32,6 +33,8 @@ documents = db[collection6]
 #--------------------auth-------------------------#
 async def auth_user(user, token):
     global tokens
+    if (token == base_token):
+        return True
     response = tokens.find_one({"email": user})
     if response == None:
         return False
