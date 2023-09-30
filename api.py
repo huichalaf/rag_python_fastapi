@@ -44,6 +44,9 @@ whisper_pro_limit = int(whisper_pro_limit)
 whisper_basic_limit = int(whisper_basic_limit)
 whisper_free_limit = int(whisper_free_limit)
 autentication_token = os.getenv("AUTENTICATION_TOKEN")
+uploaded_files_folder = os.getenv("UPLOADED_FILES_PATH")
+images_path = os.getenv("IMAGES_PATH")
+costs_path = os.getenv("COSTS_PATH")
 
 class Message(BaseModel):
     user: str
@@ -157,35 +160,46 @@ async def get_context(request: Request):  # Agregar el parámetro Request
     return plain_text
 
 
-@app.post("/delete_name")
+@app.post("/delete_file")
 async def delete_name(request: Request):  # Agregar el parámetro Request
     global files_path
     data = await request.json()
+    file_name = ""
+    embed_name = ""
     try:
         user = data['user']
-        name_file = data['name']
+        name_file = data['file']
         token = data['token']
         hash_name = data['hash_name']
     except:
         return {"result": False, "message": "Invalid parameters"}
     if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
-
     try:
-        os.remove(f"{files_path}subject/pending/"+hash_name)
+        if '.' in hash_name:
+            embed_name = hash_name.split(".")[0:-1]
+            embed_name = "".join(embed_name)
+            file_name = "".join(embed_name)
+        else:
+            file_name = hash_name
+            embed_name = hash_name
     except:
-        os.remove(f"{files_path}subject/embed/"+hash_name)
-    embed_name=""
-    if '.' in hash_name:
-        embed_name = hash_name.split(".")[0:-1]
-        embed_name = "".join(embed_name)
-    else:
-        embed_name = hash_name
-    os.remove(embeddings_folder+embed_name+".csv")
-    #borramos el registro del archivo
-    df = df[df.name != name_file]
-    df.to_csv("names.csv", index=False)
-    return True
+        return {"result": False, "message": "Invalid parameters"}
+    try:
+        os.remove(f"{files_path}subject/pending/"+file_name+".pdf")
+        os.remove(f"{files_path}subject/pending/"+file_name+".txt")
+        os.remove(embeddings_folder+embed_name+".csv")
+    except:
+        try:
+            os.remove(f"{files_path}subject/embed/"+file_name+".pdf")
+            os.remove(f"{files_path}subject/embed/"+file_name+".txt")
+            os.remove(embeddings_folder+embed_name+".csv")
+        except:
+            pass
+    response = await delete_files(user, file_name, name_file)
+    if response:
+        return True
+    return False
 
 @app.post("/uploadfile")
 async def upload_file(request: Request, file: UploadFile, user: str = Form(...)):

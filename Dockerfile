@@ -13,8 +13,4 @@ RUN pip install -r requirements.txt
 # Exponemos el puerto de la API
 EXPOSE 8000
 
-# Comando para iniciar la API
-RUN chmod +x ./setup_folders.sh
-RUN bash setup_folders.sh
-
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--loop", "asyncio"]

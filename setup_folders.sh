@@ -1,9 +1,10 @@
 #!bin/bash
 
 # Create folders
-mkdir -p /files/subject
-mkdir -p /files/subject/embed
-mkdir -p /files/subject/pending
-mkdir -p /files/images
-mkdir -p /files/embeddings
-mkdir -p /files/costs
+cd /files
+mkdir -p subject
+mkdir -p subject/embed
+mkdir -p subject/pending
+mkdir -p images
+mkdir -p embeddings
+mkdir -p costs
