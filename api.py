@@ -188,16 +188,22 @@ async def delete_name(request: Request):  # Agregar el parámetro Request
     except:
         return {"result": False, "message": "Invalid parameters"}
     try:
-        os.remove(f"{files_path}subject/pending/"+file_name+".pdf")
-        os.remove(f"{files_path}subject/pending/"+file_name+".txt")
         os.remove(embeddings_folder+embed_name+".csv")
     except:
+        print("the embedd does not exists")
+    try:
         try:
-            os.remove(f"{files_path}subject/embed/"+file_name+".pdf")
-            os.remove(f"{files_path}subject/embed/"+file_name+".txt")
-            os.remove(embeddings_folder+embed_name+".csv")
+            os.remove(f"{files_path}subject/pending/"+file_name+".pdf")
         except:
-            pass
+            os.remove(f"{files_path}subject/pending/"+file_name+".txt")
+    except:
+        try:
+            try:
+                os.remove(f"{files_path}subject/embed/"+file_name+".pdf")
+            except:
+                os.remove(f"{files_path}subject/embed/"+file_name+".txt")
+        except:
+            print("error deleting from both paths, the file probably does not exists")
     response = await delete_files(user, file_name, name_file, status)
     if response:
         return True
