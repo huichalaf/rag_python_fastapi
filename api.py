@@ -171,11 +171,13 @@ async def delete_name(request: Request):  # Agregar el parámetro Request
         name_file = data['file']
         token = data['token']
         hash_name = data['hash_name']
+        status = int(data['status'])
     except:
         return {"result": False, "message": "Invalid parameters"}
     if not await auth_user(user, token):
         return {"result": False, "message": "Invalid token"}
     try:
+        print(user, name_file, hash_name, status)
         if '.' in hash_name:
             embed_name = hash_name.split(".")[0:-1]
             embed_name = "".join(embed_name)
@@ -196,7 +198,7 @@ async def delete_name(request: Request):  # Agregar el parámetro Request
             os.remove(embeddings_folder+embed_name+".csv")
         except:
             pass
-    response = await delete_files(user, file_name, name_file)
+    response = await delete_files(user, file_name, name_file, status)
     if response:
         return True
     return False

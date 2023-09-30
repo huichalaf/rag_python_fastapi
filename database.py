@@ -149,13 +149,11 @@ async def get_selected_files(user):
         lista[i][0] = user+lista[i][0]
     return lista
 
-async def delete_files(user, hash_name, file_name):
+async def delete_files(user, hash_name, file_name, status):
     global files
-    files_response = files.update_one({"user": user}, {"$pull": {"files": [file_name, hash_name, 1]}})
+    files_response = files.update_one({"user": user}, {"$pull": {"files": [file_name, hash_name, status]}})
     if files_response == None:
-        files_response = files.update_one({"user": user}, {"$pull": {"files": [file_name, hash_name, 0]}})
-        if files_response == None:
-            return False
+        return False
     return True
 
 async def add_file(user, file, hash, status):
