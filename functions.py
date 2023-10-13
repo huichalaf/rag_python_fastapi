@@ -44,11 +44,6 @@ async def get_user(user):
     user = user.replace("user=", "")
     user = user.replace("%40", "@")
     return user
-
-async def get_config():
-    with open("config.json", "r") as json_file:
-        data = json.load(json_file)
-    return data
     
 async def get_user_input(text):
     #buscamos donde dice Answer this question:
@@ -222,10 +217,6 @@ async def rename_by_hash(path, text, user):
     hash_object = sha256(text.encode())
     hex_dig = hash_object.hexdigest()
     new_name = hex_dig+"."+extension
-    with open('names.csv', 'a') as f:
-        f.write(f"{new_name},{path},{user}\n")
-    os.rename(f"{files_path}subject/pending/"+path, f"{files_path}subject/embed/"+new_name)
-    #os.remove("subject/"+path)
     return new_name
 
 async def get_all_text(data):
