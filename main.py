@@ -159,7 +159,12 @@ async def get_closer(user, prompt, number=5):
             return False
         claves = list(data.keys())
         for i in claves:
-            data[i]['similarity'] = data[i]['embedding'].apply(calculate_similarity, prompt=prompt)
+            embeddings = data[i]['embedding']
+            similarities = []
+            for embedding in embeddings:
+                similarity = await cosine_similarity(embedding, prompt)
+                similarities.append(similarity)
+            data[i]['similarity'] = similarities
         df = pd.concat([data[i] for i in claves])
         df = df.sort_values(by=['similarity'], ascending=False)
         return df.head(number)

@@ -243,11 +243,8 @@ async def get_all_embeddings(data):
     return embeddings
 
 async def cosine_similarity(a, b):
-    result = await np.dot(a, b)/(np.linalg.norm(a)*np.linalg.norm(b))
+    result = np.dot(a, b)/(np.linalg.norm(a)*np.linalg.norm(b))
     return result
-
-async def calculate_similarity(embedding, prompt):
-    return await cosine_similarity(embedding, prompt)
 
 async def divide_text_str(text):
     text_splitter = RecursiveCharacterTextSplitter(
