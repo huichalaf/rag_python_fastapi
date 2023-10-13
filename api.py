@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import document_generator as q
 from database import *
+from functions import calculate_tokens
 
 app = FastAPI()
 app.add_middleware(
@@ -24,29 +25,11 @@ app.add_middleware(
 
 load_dotenv()
 files_path = os.getenv("FILES_PATH")
-monthly_basic_limit = os.getenv("MONTHLY_EMBEDDINGS_BASIC_LIMIT")
-monthly_pro_limit = os.getenv("MONTHLY_EMBEDDINGS_PRO_LIMIT")
-monthly_free_limit = os.getenv("MONTHLY_EMBEDDINGS_FREE_LIMIT")
-embeddings_folder = os.getenv("EMBEDDINGS_FOLDER")
-monthly_basic_limit = int(monthly_basic_limit)
-monthly_pro_limit = int(monthly_pro_limit)
-monthly_free_limit = int(monthly_free_limit)
-basic_limit = os.getenv("DAILY_QUERYS_BASIC_LIMIT")
-pro_limit = os.getenv("DAILY_QUERYS_PRO_LIMIT")
-free_limit = os.getenv("DAILY_QUERYS_FREE_LIMIT")
-basic_limit = int(basic_limit)
-pro_limit = int(pro_limit)
-free_limit = int(free_limit)
-whisper_pro_limit = os.getenv("MONTHLY_AUDIO_PRO_LIMIT")
-whisper_basic_limit = os.getenv("MONTHLY_AUDIO_BASIC_LIMIT")
-whisper_free_limit = os.getenv("MONTHLY_AUDIO_FREE_LIMIT")
-whisper_pro_limit = int(whisper_pro_limit)
-whisper_basic_limit = int(whisper_basic_limit)
-whisper_free_limit = int(whisper_free_limit)
 autentication_token = os.getenv("AUTENTICATION_TOKEN")
 uploaded_files_folder = os.getenv("UPLOADED_FILES_PATH")
 images_path = os.getenv("IMAGES_PATH")
 costs_path = os.getenv("COSTS_PATH")
+price_context = float(os.getenv("PRICE_CONTEXT"))
 
 class Message(BaseModel):
     user: str
@@ -76,8 +59,14 @@ async def save_context(request: Request):  # Agregar el parámetro Request
     if await get_status(user) == "active":
         print("already loading")
         return {"result": False, "message": "Loading documents"}
+    if not await check_tokens(user):
+        print("error tokens")
+        return {"result": False, "message": "You don't have tokens"}
+
     updated_status = await update_status(user, "active")
     hash_names=[]
+    files_path = os.getenv("FILES_PATH")
+    print(files_path)
     files_prev = os.listdir(f"{files_path}subject/pending")
     files = []
     print(user)
@@ -90,6 +79,9 @@ async def save_context(request: Request):  # Agregar el parámetro Request
         if len(files_pdf) > 0:
             for i in files_pdf:
                 text = await read_one_pdf(f"{files_path}subject/pending/"+i)
+                text_string = " ".join(text)
+                total_tokens = await calculate_tokens(text_string)
+                await add_tokens_embeddings(user, total_tokens)
                 if text:
                     response_save = await save_document(user, i)
                     try:
@@ -108,6 +100,9 @@ async def save_context(request: Request):  # Agregar el parámetro Request
         if len(files_txt) > 0:
             for i in files_txt:
                 text = await read_one_txt(f"{files_path}subject/pending/"+i)
+                text_string = " ".join(text)
+                total_tokens = await calculate_tokens(text_string)
+                await add_tokens_embeddings(user, total_tokens)
                 if text:
                     response_save = await save_text(user, i, text)
                     try:
@@ -140,23 +135,31 @@ async def save_context(request: Request):  # Agregar el parámetro Request
 @app.post("/context")
 async def get_context(request: Request):  # Agregar el parámetro Request
     data = await request.json()
+    global price_context
     try:
         user = data['user']
         prompt = data['text']
         token = data['token']
     except:
         return {"result": False, "message": "Invalid parameters"}
-#    if not await auth_user(user, token):
-#        return {"result": False, "message": "Invalid token"}
+    if not await auth_user(user, token):
+        print("error auth")
+        return {"result": False, "message": "Invalid token"}
+    if not await check_tokens(user):
+        print("error tokens")
+        return {"result": False, "message": "You don't have tokens"}
     try:
         closer = await get_closer(user, prompt, number=5)
     except Exception as e:
-        print(f"\033[91m{e}\033[0m")
+        await add_tokens_usage(user, price_context)
+        print(f"\033[91mError: {e}\033[0m")
         return "Answer this question: "
     if type(closer) == bool:
+        await add_tokens_usage(user, price_context)
         return "Answer this question: "
     context = closer['text'].tolist()
     plain_text = " ".join(context)
+    await add_tokens_usage(user, price_context)
     return plain_text
 
 
@@ -211,8 +214,15 @@ async def delete_name(request: Request):  # Agregar el parámetro Request
 
 @app.post("/uploadfile")
 async def upload_file(request: Request, file: UploadFile, user: str = Form(...)):
+    global files_path
     files_path = os.getenv("UPLOADED_FILES_PATH")
     new_name_file = await change_filename(file.filename)
+    files_user = await get_files(user)
+    if len(files_user) >= 10:
+        return {"message": "Exceed files limit"}
+    a_tokens = await get_a_tokens(user)
+    if a_tokens <= 0:
+        return {"message": "You don't have tokens"}
     with open(f"{files_path}{user}_{new_name_file}", "wb") as f:
         f.write(file.file.read())
     return {"message": "Archivo subido correctamente"}

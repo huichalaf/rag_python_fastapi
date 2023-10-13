@@ -12,9 +12,16 @@ import sys
 from hashlib import sha256
 import openai
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+import tiktoken
 
 dotenv.load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
+
+async def calculate_tokens(text, encoding_name="cl100k_base"):
+    encoding = tiktoken.get_encoding(encoding_name)
+    num_tokens = len(encoding.encode(text))
+    return num_tokens
+
 
 async def change_filename(filename):
     filename = filename.replace(" ", "_")
@@ -235,8 +242,12 @@ async def get_all_embeddings(data):
         embeddings.extend(data[i]['embedding'].tolist())
     return embeddings
 
-def cosine_similarity(a, b):
-    return np.dot(a, b)/(np.linalg.norm(a)*np.linalg.norm(b))
+async def cosine_similarity(a, b):
+    result = await np.dot(a, b)/(np.linalg.norm(a)*np.linalg.norm(b))
+    return result
+
+async def calculate_similarity(embedding, prompt):
+    return await cosine_similarity(embedding, prompt)
 
 async def divide_text_str(text):
     text_splitter = RecursiveCharacterTextSplitter(

@@ -9,7 +9,7 @@ load_dotenv()
 db_user = os.getenv("MONGODB_USER")
 db_password = os.getenv("MONGODB_PASSWORD")
 base_token = os.getenv("TOKEN_CONTEXT")
-
+price_token = float(os.getenv("PRICE_TOKEN_EMBEDDINGS"))
 try:
     client = pymongo.MongoClient(f"mongodb+srv://{db_user}:{db_password}@serverlessinstance0.oo6ew3r.mongodb.net/?retryWrites=true&w=majority&appName=AtlasApp")
 except pymongo.errors.ConfigurationError:
@@ -50,12 +50,22 @@ async def get_stats(user):
         return False
     return response
 
-async def add_tokens_usage(user, tokens_usage):
+async def add_tokens_usage(user, add_tokens):
     global stats
     response = stats.find_one({"email": user})
     if response == None:
         return False
-    stats.update_one({"email": user}, {"$set": {"a_tokens": tokens_usage}})
+    stats.update_one({"email": user}, {"$inc": {"a_tokens": -add_tokens}})
+    return True
+
+async def add_tokens_embeddings(user, total_tokens_embeddings):
+    price = total_tokens_embeddings*price_token
+    global stats
+    print("precio embeddings: ",price)
+    response = stats.find_one({"email": user})
+    if response == None or response['a_tokens'] < price:
+        return False
+    stats.update_one({"email": user}, {"$inc": {"a_tokens": -price}})
     return True
 
 async def get_a_tokens(user):
@@ -164,3 +174,14 @@ async def add_file(user, file, hash, status):
         return True
     files.update_one({"user": user}, {"$push": {"files": [file, hash, status]}})
     return True
+
+async def check_tokens(user):
+    global stats
+    stats_response = stats.find_one({"email": user})
+    print(user)
+    print(stats_response)
+    if stats_response == None:
+        return False
+    if stats_response['a_tokens'] > 0:
+        return True
+    return False

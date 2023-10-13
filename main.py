@@ -123,7 +123,6 @@ async def save_document(user, path):
 async def save_text(user, path, text):
     global embeddings_path
     try:
-        total_tokens = await calculate_tokens(text)
         posible=True
         if not posible:
             os.remove(f"{files_path}subject/pending/"+path)
@@ -160,7 +159,7 @@ async def get_closer(user, prompt, number=5):
             return False
         claves = list(data.keys())
         for i in claves:
-            data[i]['similarity'] = data[i]['embedding'].apply(lambda x: cosine_similarity(x, prompt))
+            data[i]['similarity'] = data[i]['embedding'].apply(calculate_similarity, prompt=prompt)
         df = pd.concat([data[i] for i in claves])
         df = df.sort_values(by=['similarity'], ascending=False)
         return df.head(number)
