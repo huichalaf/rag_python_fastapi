@@ -27,7 +27,6 @@ load_dotenv()
 files_path = os.getenv("FILES_PATH")
 autentication_token = os.getenv("AUTENTICATION_TOKEN")
 uploaded_files_folder = os.getenv("UPLOADED_FILES_PATH")
-images_path = os.getenv("IMAGES_PATH")
 costs_path = os.getenv("COSTS_PATH")
 price_context = float(os.getenv("PRICE_CONTEXT"))
 
