@@ -126,6 +126,7 @@ async def save_context(request: Request):  # Agregar el parámetro Request
             for f in total_files:
                 f_name = f.replace(user, "")
                 await add_file(user, f_name, hash_names[total_files.index(f)], 1)
+                os.system(f"rm {files_path}subject/pending/{f}")
         except Exception as e:
             print(f"\033{e}\033[0m")
     await update_status(user, "inactive")
