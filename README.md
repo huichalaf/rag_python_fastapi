@@ -1,64 +1,64 @@
-# Documentación de la API de FastAPI
+# FastAPI Documentation
 
-Esta documentación describe las rutas disponibles en la API de FastAPI. Asegúrate de tener acceso a la documentación adecuada para comprender cómo utilizar cada ruta.
+This documentation outlines the available routes in the FastAPI. Ensure you have access to the proper documentation to understand how to use each route.
 
-## Ruta Raíz
+## Root Route
 ### `GET /`
-- **Descripción:** Verificar el estado de la API.
-- **Parámetros:**
-  - Ninguno.
-- **Respuesta de Ejemplo:**
+- **Description:** Verify the status of the API.
+- **Parameters:**
+  - None.
+- **Example Response:**
   ```json
   {"Status": "Running", "IP": "192.168.1.1"}
   ```
 
-## Cargar Contexto
+## Load Context
 ### `POST /load_context`
-- **Descripción:** Carga documentos y contexto para un usuario.
-- **Parámetros de Solicitud:**
-  - `user` (cadena): El nombre de usuario.
-- **Respuesta de Ejemplo:**
+- **Description:** Loads documents and context for a user.
+- **Request Parameters:**
+  - `user` (string): The username.
+- **Example Response:**
   ```json
-  {"result": true, "message": "Documentos cargados correctamente"}
+  {"result": true, "message": "Documents loaded successfully"}
   ```
 
-## Obtener Contexto
+## Get Context
 ### `POST /context`
-- **Descripción:** Obtiene contexto para un usuario basado en una solicitud.
-- **Parámetros de Solicitud:**
-  - `user` (cadena): El nombre de usuario.
-  - `text` (cadena): El texto de la solicitud.
-  - `token` (cadena): Token de autenticación.
-- **Respuesta de Ejemplo:**
+- **Description:** Obtains context for a user based on a request.
+- **Request Parameters:**
+  - `user` (string): The username.
+  - `text` (string): The text of the request.
+  - `token` (string): Authentication token.
+- **Example Response:**
   ```json
-  {"result": true, "message": "Texto de contexto obtenido correctamente"}
+  {"result": true, "message": "Context text obtained successfully"}
   ```
 
-## Eliminar Archivo
+## Delete File
 ### `POST /delete_file`
-- **Descripción:** Elimina un archivo cargado por un usuario.
-- **Parámetros de Solicitud:**
-  - `user` (cadena): El nombre de usuario.
-  - `file` (cadena): Nombre del archivo a eliminar.
-  - `token` (cadena): Token de autenticación.
-- **Respuesta de Ejemplo:**
+- **Description:** Deletes a file uploaded by a user.
+- **Request Parameters:**
+  - `user` (string): The username.
+  - `file` (string): Name of the file to delete.
+  - `token` (string): Authentication token.
+- **Example Response:**
   ```json
   true
   ```
 
-## Subir Archivo
+## Upload File
 ### `POST /uploadfile`
-- **Descripción:** Sube un archivo al sistema.
-- **Parámetros de Solicitud:**
-  - `user` (cadena): El nombre de usuario.
-  - `file` (archivo): Archivo a cargar.
-- **Respuesta de Ejemplo:**
+- **Description:** Uploads a file to the system.
+- **Request Parameters:**
+  - `user` (string): The username.
+  - `file` (file): File to upload.
+- **Example Response:**
   ```json
-  {"message": "Archivo subido correctamente"}
+  {"message": "File uploaded successfully"}
   ```
 
-## Ejecutar la API
-La API FastAPI se ejecuta en el puerto 8000. Asegúrate de iniciar la API para utilizar las rutas descritas anteriormente.
+## Run the API
+The FastAPI runs on port 8000. Ensure you start the API to use the routes described above.
 
 ```
 uvicorn main:app --host 0.0.0.0 --port 8000
