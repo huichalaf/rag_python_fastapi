@@ -11,7 +11,7 @@ db_password = os.getenv("MONGODB_PASSWORD")
 base_token = os.getenv("TOKEN_CONTEXT")
 price_token = float(os.getenv("PRICE_TOKEN_EMBEDDINGS"))
 try:
-    client = pymongo.MongoClient(f"mongodb+srv://{db_user}:{db_password}@serverlessinstance0.oo6ew3r.mongodb.net/?retryWrites=true&w=majority&appName=AtlasApp")
+    client = pymongo.MongoClient(f"your_url_here")
 except pymongo.errors.ConfigurationError:
     print("An Invalid URI host error was received. Is your Atlas host name correct in your connection string?")
     sys.exit(1)
